@@ -1,19 +1,19 @@
-# website-stats — Per-Site Monitoring Dashboard for CloudPanel
+# SiteStats — Per-Site Monitoring Dashboard for CloudPanel
 
-**website-stats** is a lightweight, self-hosted monitoring dashboard for
+**SiteStats** is a lightweight, self-hosted monitoring dashboard for
 [CloudPanel](https://www.cloudpanel.io/) servers that shows **CPU, memory, traffic,
 PHP-FPM and disk usage for every website on your server** — not just server-wide totals.
 
 When your monitoring (Beszel, Uptime Kuma, Netdata, …) alerts you that *the server* is
-spiking, website-stats answers the question that alert can't: **which website caused it,
+spiking, SiteStats answers the question that alert can't: **which website caused it,
 what it was doing, and who was hitting it.**
 
-![website-stats dashboard screenshot](docs/screenshot-overview.png)
+![SiteStats dashboard screenshot](docs/screenshot-overview.png)
 
 ## Why
 
 Host-level monitors tell you *"the server CPU is at 80 %"* — but on a shared hosting box
-with 20 websites, that's only half the story. website-stats decomposes every spike **per
+with 20 websites, that's only half the story. SiteStats decomposes every spike **per
 website** by exploiting CloudPanel's architecture: every site already runs as its own
 Linux user with its own PHP-FPM pool and its own nginx access log. No agents, no changes
 to your sites — just read what's already there.
@@ -36,13 +36,13 @@ to your sites — just read what's already there.
   dark single-page UI with [uPlot](https://github.com/leeoniya/uPlot) charts
 - **Zero site changes** — nothing is installed into your websites; the collector only
   reads `/proc`, nginx logs and PHP-FPM status endpoints
-- **Demo mode** — `website-stats demo` runs the full UI on synthetic data, no server
+- **Demo mode** — `SiteStats demo` runs the full UI on synthetic data, no server
   attachment needed
 
 ## How it works
 
 CloudPanel gives every website its own Linux user, PHP-FPM pool and nginx vhost.
-website-stats correlates all three:
+SiteStats correlates all three:
 
 1. **Site discovery** — parses `/etc/nginx/sites-enabled/*.conf` and
    `/etc/php/*/fpm/pool.d/*.conf`, matched against local user accounts
@@ -68,30 +68,30 @@ website-stats correlates all three:
 ### 1. Build
 
 ```bash
-git clone https://github.com/REVENTOR-EU/website-stats.git
-cd website-stats
+git clone https://github.com/REVENTOR-EU/SiteStats.git
+cd SiteStats
 GOOS=linux GOARCH=arm64 CGO_ENABLED=0 go build -trimpath -ldflags "-s -w" \
-  -o website-stats ./cmd/website-stats
+  -o sitestats ./cmd/SiteStats
 # (amd64 servers: GOARCH=amd64)
 ```
 
 ### 2. Install on the server
 
 ```bash
-scp website-stats deploy/website-stats.service deploy/config.example.yml root@your-server:/tmp/
+scp sitestats deploy/sitestats.service deploy/config.example.yml root@your-server:/tmp/
 
 ssh root@your-server
-install -d /opt/website-stats /var/lib/website-stats
-install -m 0755 /tmp/website-stats /opt/website-stats/website-stats
-install -m 0644 /tmp/website-stats.service /etc/systemd/system/website-stats.service
-/opt/website-stats/website-stats -config /opt/website-stats/config.yml set-password
-systemctl daemon-reload && systemctl enable --now website-stats
+install -d /opt/sitestats /var/lib/sitestats
+install -m 0755 /tmp/sitestats /opt/sitestats/sitestats
+install -m 0644 /tmp/sitestats.service /etc/systemd/system/sitestats.service
+/opt/sitestats/sitestats -config /opt/sitestats/config.yml set-password
+systemctl daemon-reload && systemctl enable --now sitestats
 ```
 
 The dashboard now listens on `127.0.0.1:8811`. Verify discovery with:
 
 ```bash
-/opt/website-stats/website-stats -config /opt/website-stats/config.yml inspect
+/opt/sitestats/sitestats -config /opt/sitestats/config.yml inspect
 ```
 
 ### 3. Expose it via CloudPanel
@@ -101,9 +101,9 @@ Create a **Reverse Proxy** site in CloudPanel for `stats.example.com` pointing t
 UI or via `clpctl`.
 
 If your PHP-FPM pools don't already expose a status page, add `pm.status_path = /status`
-to each pool and point website-stats at it through nginx (see
-[the wiki](https://github.com/REVENTOR-EU/website-stats/wiki) for a ready-made
-loopback-only nginx location block and `website-stats write-nginx-map`).
+to each pool and point SiteStats at it through nginx (see
+[the wiki](https://github.com/REVENTOR-EU/SiteStats/wiki) for a ready-made
+loopback-only nginx location block and `SiteStats write-nginx-map`).
 
 ## Configuration
 
@@ -112,7 +112,7 @@ Everything lives in one YAML file (defaults in
 
 ```yaml
 listen: 127.0.0.1:8811
-data_dir: /var/lib/website-stats
+data_dir: /var/lib/sitestats
 
 collect:
   interval: 10s          # /proc scan
@@ -141,7 +141,7 @@ alerts:
 ## FAQ
 
 **Which website is using my CPU on CloudPanel?**
-That's exactly what website-stats answers. Open the dashboard, look at the "CPU by site"
+That's exactly what SiteStats answers. Open the dashboard, look at the "CPU by site"
 chart, and the site that caused the spike is the line that grew.
 
 **Does it install anything into my websites?**
@@ -150,7 +150,7 @@ endpoints. Your sites are never modified.
 
 **How is this different from Beszel / Netdata?**
 Beszel monitors hosts and Docker containers; Netdata monitors everything with a heavy
-agent. website-stats sits in between: it's purpose-built to decompose a CloudPanel server
+agent. SiteStats sits in between: it's purpose-built to decompose a CloudPanel server
 into its websites — a natural companion to Beszel rather than a replacement.
 
 **Does it work without CloudPanel?**
@@ -159,7 +159,7 @@ discovery expects the CloudPanel layout, but the config lets you point it at you
 and pool directories.
 
 **Can I try it without a server?**
-`website-stats demo` serves the full UI with synthetic data for five fake sites.
+`SiteStats demo` serves the full UI with synthetic data for five fake sites.
 
 ## License
 

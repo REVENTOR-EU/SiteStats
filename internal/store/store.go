@@ -10,7 +10,7 @@ import (
 
 	_ "modernc.org/sqlite"
 
-	"website-stats/internal/collect"
+	"github.com/REVENTOR-EU/SiteStats/internal/collect"
 )
 
 type Store struct {

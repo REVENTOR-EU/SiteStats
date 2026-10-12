@@ -20,12 +20,12 @@ import (
 	"golang.org/x/term"
 	"gopkg.in/yaml.v3"
 
-	"website-stats/internal/alerter"
-	"website-stats/internal/config"
-	"website-stats/internal/engine"
-	"website-stats/internal/server"
-	"website-stats/internal/sites"
-	"website-stats/internal/store"
+	"github.com/REVENTOR-EU/SiteStats/internal/alerter"
+	"github.com/REVENTOR-EU/SiteStats/internal/config"
+	"github.com/REVENTOR-EU/SiteStats/internal/engine"
+	"github.com/REVENTOR-EU/SiteStats/internal/server"
+	"github.com/REVENTOR-EU/SiteStats/internal/sites"
+	"github.com/REVENTOR-EU/SiteStats/internal/store"
 )
 
 var configPaths = []string{

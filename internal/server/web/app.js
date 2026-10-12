@@ -33,7 +33,7 @@ function colorFor(key) {
     const g = Math.round(hue2rgb(pp, q, hue) * 255);
     const b = Math.round(hue2rgb(pp, q, hue - 1 / 3) * 255);
     const hex = "#" + [r, g, b].map((v) => v.toString(16).padStart(2, "0")).join("");
-    state.palette[key] = { hue: h * 360, css: hex, fill: `rgba(${r},${g},${b},0.82)` };
+    state.palette[key] = { css: hex, fill: `rgba(${r},${g},${b},0.82)` };
   }
   return state.palette[key];
 }

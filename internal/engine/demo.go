@@ -5,8 +5,8 @@ import (
 	"math"
 	"time"
 
-	"website-stats/internal/collect"
-	"website-stats/internal/sites"
+	"github.com/REVENTOR-EU/SiteStats/internal/collect"
+	"github.com/REVENTOR-EU/SiteStats/internal/sites"
 )
 
 type demoSim struct {

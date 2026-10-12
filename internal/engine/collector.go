@@ -9,11 +9,11 @@ import (
 	"sync/atomic"
 	"time"
 
-	"website-stats/internal/alerter"
-	"website-stats/internal/collect"
-	"website-stats/internal/config"
-	"website-stats/internal/sites"
-	"website-stats/internal/store"
+	"github.com/REVENTOR-EU/SiteStats/internal/alerter"
+	"github.com/REVENTOR-EU/SiteStats/internal/collect"
+	"github.com/REVENTOR-EU/SiteStats/internal/config"
+	"github.com/REVENTOR-EU/SiteStats/internal/sites"
+	"github.com/REVENTOR-EU/SiteStats/internal/store"
 )
 
 // Collector runs all collectors on their tickers and assembles per-minute

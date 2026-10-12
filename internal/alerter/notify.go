@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"website-stats/internal/config"
+	"github.com/REVENTOR-EU/SiteStats/internal/config"
 )
 
 // NotifyEmail sends the alert via SMTP (STARTTLS when offered).

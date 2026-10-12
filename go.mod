@@ -1,4 +1,4 @@
-module website-stats
+module github.com/REVENTOR-EU/SiteStats
 
 go 1.27.0
 

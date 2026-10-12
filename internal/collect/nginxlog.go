@@ -9,7 +9,7 @@ import (
 	"sync"
 	"time"
 
-	"website-stats/internal/sites"
+	"github.com/REVENTOR-EU/SiteStats/internal/sites"
 )
 
 // TrafficMinute aggregates one site's HTTP traffic for one minute.

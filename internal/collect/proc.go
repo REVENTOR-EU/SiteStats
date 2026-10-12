@@ -8,7 +8,7 @@ import (
 	"strconv"
 	"time"
 
-	"website-stats/internal/sites"
+	"github.com/REVENTOR-EU/SiteStats/internal/sites"
 )
 
 const clkTck = 100 // kernel USER_HZ on all supported platforms

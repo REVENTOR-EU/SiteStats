@@ -1,11 +1,11 @@
-# /etc/systemd/system/website-stats.service
+# /etc/systemd/system/sitestats.service
 [Unit]
 Description=Per-site monitoring dashboard for CloudPanel (website-stats)
 After=network.target nginx.service
 
 [Service]
 Type=simple
-ExecStart=/opt/website-stats/website-stats -config /opt/website-stats/config.yml
+ExecStart=/opt/sitestats/sitestats -config /opt/website-stats/config.yml
 Restart=always
 RestartSec=5
 TimeoutStopSec=20
@@ -19,7 +19,7 @@ NoNewPrivileges=true
 PrivateTmp=true
 ProtectSystem=strict
 ProtectHome=false
-ReadWritePaths=/var/lib/website-stats
+ReadWritePaths=/var/lib/sitestats
 ProtectKernelTunables=true
 ProtectKernelModules=true
 ProtectControlGroups=true

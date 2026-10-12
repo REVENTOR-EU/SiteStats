@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"time"
 
-	"website-stats/internal/collect"
-	"website-stats/internal/config"
+	"github.com/REVENTOR-EU/SiteStats/internal/collect"
+	"github.com/REVENTOR-EU/SiteStats/internal/config"
 )
 
 // Event is a fired alert.

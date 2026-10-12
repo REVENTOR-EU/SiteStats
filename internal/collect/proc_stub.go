@@ -6,7 +6,7 @@ import (
 	"runtime"
 	"time"
 
-	"website-stats/internal/sites"
+	"github.com/REVENTOR-EU/SiteStats/internal/sites"
 )
 
 type procState struct {

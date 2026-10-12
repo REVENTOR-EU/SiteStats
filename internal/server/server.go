@@ -16,10 +16,10 @@ import (
 
 	"golang.org/x/crypto/bcrypt"
 
-	"website-stats/internal/collect"
-	"website-stats/internal/config"
-	"website-stats/internal/engine"
-	"website-stats/internal/store"
+	"github.com/REVENTOR-EU/SiteStats/internal/collect"
+	"github.com/REVENTOR-EU/SiteStats/internal/config"
+	"github.com/REVENTOR-EU/SiteStats/internal/engine"
+	"github.com/REVENTOR-EU/SiteStats/internal/store"
 )
 
 //go:embed web
