@@ -1,0 +1,62 @@
+# website-stats configuration
+# Defaults are shown; only set what you want to change.
+
+listen: 127.0.0.1:8811        # bind address (dashboard is proxied by nginx)
+data_dir: /var/lib/website-stats
+# password_hash: $2a$10$...    # set via: website-stats set-password
+session_ttl: 720h             # login session lifetime (30d)
+
+collect:
+  interval: 10s               # /proc scan (per-site CPU/RAM)
+  nginx_sites_dir: /etc/nginx/sites-enabled
+  fpm_pool_glob: /etc/php/*/fpm/pool.d/*.conf
+  fpm_interval: 30s
+  disk_interval: 1h
+  discover_every: 5m          # re-scan vhosts/pools (picks up new sites)
+  top_window: 10m             # top-URL/IP aggregation window
+  top_keep: 20
+
+retention:
+  minute_days: 30             # per-minute samples
+  disk_days: 90
+  top_days: 14
+  event_days: 90
+
+alerts:
+  rules:
+    - name: site-high-cpu
+      metric: site.cpu        # site.cpu | site.mem | site.mem_pct | site.req | site.err5 | system.cpu
+      site: "*"               # site username or "*"
+      op: ">"
+      value: 40               # % of TOTAL server CPU
+      for: 5m
+      cooldown: 1h
+      severity: warning
+    - name: site-5xx-spike
+      metric: site.err5
+      site: "*"
+      op: ">"
+      value: 20               # 5xx per minute
+      for: 5m
+      cooldown: 1h
+      severity: warning
+    - name: system-high-cpu
+      metric: system.cpu
+      site: "*"
+      op: ">"
+      value: 85
+      for: 5m
+      cooldown: 1h
+      severity: critical
+
+  email:
+    enabled: false
+    smtp_host: smtp.example.com:587
+    username: ""
+    password: ""
+    from: stats@example.com
+    to: [admin@example.com]
+
+  webhook:
+    enabled: false
+    url: ""                   # POSTs {source, ts, rule, site, severity, message}

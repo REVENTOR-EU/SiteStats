@@ -1,0 +1,22 @@
+# build artifacts
+build/
+*.exe
+*.db
+*.db-shm
+*.db-wal
+
+# local runtime config (contains password hash)
+config.yml
+
+# secrets / captured data — never commit
+dashboard-password.txt
+captured-overview.json
+LOCAL-NOTES.md
+
+# demo screenshot leftovers
+build/repro/
+
+# session-local files
+.zcode/
+*.exe~
+LOCAL-NOTES.md

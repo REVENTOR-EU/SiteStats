@@ -1,0 +1,36 @@
+# /etc/systemd/system/website-stats.service
+[Unit]
+Description=Per-site monitoring dashboard for CloudPanel (website-stats)
+After=network.target nginx.service
+
+[Service]
+Type=simple
+ExecStart=/opt/website-stats/website-stats -config /opt/website-stats/config.yml
+Restart=always
+RestartSec=5
+TimeoutStopSec=20
+# hard ceiling so a runaway can never affect production workloads
+MemoryMax=400M
+
+# runs as root to read every site's access log under /home/<user>/logs,
+# but is contained: read-only filesystem except its data dir, no new
+# privileges, no kernel/control-group access, tmpfs /tmp.
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=false
+ReadWritePaths=/var/lib/website-stats
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+ProtectClock=true
+RestrictSUIDSGID=true
+RestrictNamespaces=true
+LockPersonality=true
+MemoryDenyWriteExecute=true
+SystemCallFilter=@system-service
+SystemCallErrorNumber=EPERM
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>website-stats</title>
+<link rel="stylesheet" href="/static/app.css?v=13">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%93%88%3C/text%3E%3C/svg%3E">
+</head>
+<body>
+
+<div id="login" class="login-overlay hidden">
+  <form class="login-card" id="loginForm">
+    <h1>website-stats</h1>
+    <p>self-hosted per-site monitoring</p>
+    <input type="password" id="loginPassword" placeholder="Password" autocomplete="current-password" autofocus>
+    <button type="submit">Sign in</button>
+    <div id="loginError" class="login-error hidden"></div>
+  </form>
+</div>
+
+<header class="topbar">
+  <div class="brand">
+    <span class="brand-name">website-stats</span>
+    <span class="brand-host">per-site monitoring</span>
+  </div>
+  <div class="chips" id="chips"></div>
+  <button id="logoutBtn" class="btn ghost" title="Sign out">Sign out</button>
+</header>
+
+<main id="app">
+  <section id="overview">
+    <div class="row spread">
+      <h2>CPU by site <span class="hint">% of total server capacity, per site</span></h2>
+      <div class="ranges" id="ranges"></div>
+    </div>
+    <div class="card chart-wrap"><div id="mainChart"></div></div>
+
+    <div class="card">
+      <table class="sites" id="siteTable">
+        <thead>
+          <tr>
+            <th>Site</th><th class="num">CPU now</th><th class="num">RAM</th>
+            <th class="num">req/min</th><th class="num">5xx/min</th>
+            <th class="num">Procs</th><th class="num">FPM act/q</th>
+            <th style="width:130px">Last 24h</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+
+    <div class="card" id="eventsCard">
+      <h3>Recent alerts</h3>
+      <ul class="events" id="eventsList"></ul>
+    </div>
+  </section>
+
+  <section id="siteview" class="hidden">
+    <div class="row spread">
+      <h2><a href="#" id="backLink">&larr; Overview</a> / <span id="siteTitle"></span></h2>
+      <div class="ranges" id="siteRanges"></div>
+    </div>
+    <div class="cards" id="siteCards"></div>
+
+    <div class="grid2">
+      <div class="card chart-wrap"><h3>CPU % (of server)</h3><div id="cpuChart"></div></div>
+      <div class="card chart-wrap"><h3>Memory (MB)</h3><div id="memChart"></div></div>
+      <div class="card chart-wrap"><h3>Requests / min</h3><div id="reqChart"></div></div>
+      <div class="card chart-wrap"><h3>Bytes / min</h3><div id="bytesChart"></div></div>
+      <div class="card chart-wrap"><h3>HTTP status 4xx / 5xx</h3><div id="statusChart"></div></div>
+      <div class="card chart-wrap"><h3>PHP-FPM active workers</h3><div id="fpmChart"></div></div>
+    </div>
+
+    <div class="grid3">
+      <div class="card"><h3>Top processes <span class="hint">live</span></h3><ul class="kvlist" id="procList"></ul></div>
+      <div class="card"><h3>Top URLs <span class="hint">24h</span></h3><ul class="kvlist" id="urlList"></ul></div>
+      <div class="card"><h3>Top client IPs <span class="hint">24h</span></h3><ul class="kvlist" id="ipList"></ul></div>
+    </div>
+
+    <div class="grid2">
+      <div class="card"><h3>Disk usage (site home)</h3><div id="diskChart"></div></div>
+      <div class="card"><h3>Alerts for this site</h3><ul class="events" id="siteEvents"></ul></div>
+    </div>
+  </section>
+</main>
+
+<footer>website-stats <span id="ver"></span> · times in your local timezone</footer>
+
+<script src="/static/uplot.iife.min.js?v=13"></script>
+<script src="/static/app.js?v=13"></script>
+</body>
+</html>
