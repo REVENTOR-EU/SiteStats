@@ -1,11 +1,11 @@
 # /etc/systemd/system/sitestats.service
 [Unit]
-Description=Per-site monitoring dashboard for CloudPanel (website-stats)
+Description=Per-site monitoring dashboard for CloudPanel (SiteStats)
 After=network.target nginx.service
 
 [Service]
 Type=simple
-ExecStart=/opt/sitestats/sitestats -config /opt/website-stats/config.yml
+ExecStart=/opt/sitestats/sitestats -config /opt/sitestats/config.yml
 Restart=always
 RestartSec=5
 TimeoutStopSec=20
