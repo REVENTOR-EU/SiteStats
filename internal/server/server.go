@@ -67,7 +67,14 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /api/overview", s.auth(s.handleOverview))
 	mux.HandleFunc("GET /api/site/{user}", s.auth(s.handleSite))
 	mux.HandleFunc("GET /api/events", s.auth(s.handleEvents))
-	return mux
+	// API responses are live data: never let the browser cache them
+	// (heuristic caching of GETs made the dashboard show stale stats).
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.HasPrefix(r.URL.Path, "/api/") {
+			w.Header().Set("Cache-Control", "no-store")
+		}
+		mux.ServeHTTP(w, r)
+	})
 }
 
 // --- helpers ----------------------------------------------------------------

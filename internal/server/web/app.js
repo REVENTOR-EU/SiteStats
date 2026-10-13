@@ -108,13 +108,7 @@ const chartDefaults = {
   width: 600,
   height: 240,
   ms: true,
-  cursor: { points: { size: 5 } },
   scales: { x: { time: true } },
-  axes: [
-    { stroke: "#8b96a5", grid: { stroke: "#262d3a" }, ticks: { stroke: "#262d3a" }, space: 70 },
-    { stroke: "#8b96a5", grid: { stroke: "#262d3a" }, ticks: { stroke: "#262d3a" }, size: 55 },
-  ],
-  legend: { show: false },
 };
 
 function chartWidth(el) {
@@ -163,18 +157,41 @@ function stackedChart(el, entries) {
   }
   const cols = aligned.cols;
   const opts = {
-    ...chartDefaults,
     width: chartWidth(el),
     height: 260,
-    scales: { x: { time: true }, y: { auto: false, range: () => [0, softMax] } },
-    axes: [
-      chartDefaults.axes[0],
-      { ...chartDefaults.axes[1], values: (u, vals) => vals.map((v) => v.toFixed(0) + "%") },
-    ],
+    ms: true,
+    scales: { x: { time: true } },
+    series,
   };
   const up = new uPlot(opts, [xs, ...cols], el);
   settleSize(up, el, 260);
   attachTooltip(up, entries);
+  return up;
+}
+
+function lineChart(el, defs, height = 190, yFmt = (v) => v) {
+  el.innerHTML = "";
+  const aligned = alignSeries(defs.map((d) => d.series));
+  const xs = aligned.xs.map((t) => t * 1000);
+  const series = [null];
+  for (const d of defs) {
+    series.push({
+      label: d.name,
+      stroke: d.color || "#4c8dff",
+      width: 1.6,
+      points: { show: false },
+      spanGaps: true,
+    });
+  }
+  const opts = {
+    width: chartWidth(el),
+    height,
+    ms: true,
+    scales: { x: { time: true } },
+    series,
+  };
+  const up = new uPlot(opts, [xs, ...aligned.cols], el);
+  settleSize(up, el, height);
   return up;
 }
 
