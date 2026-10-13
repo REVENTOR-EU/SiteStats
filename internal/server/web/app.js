@@ -165,7 +165,6 @@ function stackedChart(el, entries) {
   };
   const up = new uPlot(opts, [xs, ...cols], el);
   settleSize(up, el, 260);
-  attachTooltip(up, entries);
   return up;
 }
 
@@ -195,29 +194,6 @@ function lineChart(el, defs, height = 190, yFmt = (v) => v) {
   return up;
 }
 
-function attachTooltip(up, entries) {
-  const tip = document.createElement("div");
-  tip.style.cssText = "position:fixed;pointer-events:none;background:#1c2330;border:1px solid #262d3a;border-radius:8px;padding:6px 10px;font-size:12px;display:none;z-index:50;white-space:nowrap";
-  document.body.appendChild(tip);
-  up.over.addEventListener("mousemove", (e) => {
-    const x = up.cursor.left;
-    if (x == null || x < 0) { tip.style.display = "none"; return; }
-    const i = up.posToIdx(x);
-    if (i == null) { tip.style.display = "none"; return; }
-    const t = new Date(up.data[0][i]);
-    let html = `<b>${t.toLocaleTimeString()}</b><br>`;
-    entries.forEach((en, k) => {
-      const v = up.data[k + 1] ? up.data[k + 1][i] : null;
-      if (v == null) return;
-      html += `<span style="color:${en.color}">&block;</span> ${en.name}: ${v.toFixed(1)}%<br>`;
-    });
-    tip.innerHTML = html;
-    tip.style.display = "block";
-    tip.style.left = Math.min(e.clientX + 14, window.innerWidth - 190) + "px";
-    tip.style.top = e.clientY + 12 + "px";
-  });
-  up.over.addEventListener("mouseleave", () => (tip.style.display = "none"));
-}
 
 /* ---------- overview ---------- */
 
