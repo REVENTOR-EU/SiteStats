@@ -113,7 +113,7 @@ func writeErr(w http.ResponseWriter, status int, msg string) {
 func (s *Server) auth(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if s.cfg.PasswordHash == "" {
-			writeErr(w, http.StatusServiceUnavailable, "password not configured; run: website-stats set-password")
+			writeErr(w, http.StatusServiceUnavailable, "password not configured; run: sitestats set-password")
 			return
 		}
 		c, err := r.Cookie(sessionCookie)
@@ -173,6 +173,12 @@ func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, http.StatusUnauthorized, "wrong password")
 		return
 	}
+	s.createSession(w, r)
+	writeJSON(w, 200, map[string]bool{"ok": true})
+}
+
+// createSession issues a session token and sets the session cookie.
+func (s *Server) createSession(w http.ResponseWriter, r *http.Request) {
 	token := make([]byte, 32)
 	rand.Read(token)
 	tokHex := hex.EncodeToString(token)
