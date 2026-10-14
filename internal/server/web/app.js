@@ -8,6 +8,8 @@ const state = {
   site: null,
   palette: {},
   timers: [],
+  chartView: "areas",
+  lastOverview: null,
 };
 
 /* ---------- helpers ---------- */
@@ -136,36 +138,165 @@ function alignSeries(allSeries) {
   return { xs, cols };
 }
 
-function stackedChart(el, entries) {
-  el.innerHTML = "";
-  // entries: [{name, color, fill, series: [[ts,v],...]}] sorted desc by magnitude
+// Builds bottom-up stacked bands from site entries: top sites as their own
+// band (largest at the bottom), everything else pooled into "Others".
+function buildBands(entries) {
+  const totalOf = (e) => e.series.reduce((a, p) => a + p[1], 0);
+  entries = [...entries].sort((a, b) => totalOf(b) - totalOf(a));
   const aligned = alignSeries(entries.map((e) => e.series));
   const xs = aligned.xs.map((t) => t * 1000);
-  let maxV = 0;
-  for (const e of entries) for (const [, v] of e.series) if (v > maxV) maxV = v;
-  const softMax = Math.max(10, Math.ceil(maxV * 1.25));
+  const TOP = 8;
+  const idxOf = new Map(aligned.xs.map((t, i) => [t, i]));
+  const bands = entries.slice(0, TOP).map((e) => {
+    const row = new Array(aligned.xs.length).fill(null);
+    for (const [t, v] of e.series) row[idxOf.get(t)] = v;
+    return { name: e.name, color: e.color, fill: e.fill, row };
+  });
+  if (entries.length > TOP) {
+    const rest = entries.slice(TOP);
+    const row = new Array(aligned.xs.length).fill(0);
+    let any = false;
+    for (const e of rest) {
+      for (const [t, v] of e.series) {
+        const i = idxOf.get(t);
+        row[i] += v || 0;
+        any = true;
+      }
+    }
+    bands.push({ name: "Others (" + rest.length + ")", color: "#5a6472", fill: "rgba(90,100,114,0.85)", row: any ? row : row.map(() => null) });
+  }
+  return { xs, bands };
+}
+
+// Stacked areas: each band is drawn as the cumulative sum up to that site,
+// opaque fill, drawn top-down so every band keeps its own color.
+function stackedChart(el, entries) {
+  el.innerHTML = "";
+  const aligned = alignSeries(entries.map((e) => e.series));
+  const xs = aligned.xs.map((t) => t * 1000);
+  const built = buildBands(entries);
+  const n = built.bands.length;
+
+  // cumulative rows: band i's line = sum of bands 0..i (bottom-up)
+  const cum = [];
+  for (let b = 0; b < n; b++) {
+    const row = new Array(xs.length).fill(null);
+    for (let i = 0; i < xs.length; i++) {
+      let sum = 0, has = false;
+      for (let k = 0; k <= b; k++) {
+        const v = built.bands[k].row[i];
+        if (v != null) { sum += v; has = true; }
+      }
+      row[i] = has ? sum : null;
+    }
+    cum.push(row);
+  }
+  let maxStack = 0;
+  for (const v of cum[n - 1] || []) if (v != null && v > maxStack) maxStack = v;
+  const softMax = Math.max(10, Math.ceil(maxStack * 1.15));
+
+  // draw top-down (largest cumulative first) so the bottom band stays visible;
+  // each series must be paired with its own cumulative row
+  const data = [xs];
   const series = [null];
-  for (const e of entries) {
+  for (let b = n - 1; b >= 0; b--) {
+    data.push(cum[b]);
     series.push({
-      label: e.name,
-      stroke: e.color,
-      width: 1.4,
+      label: built.bands[b].name,
+      stroke: built.bands[b].color,
+      fill: built.bands[b].color,
+      width: 1,
       points: { show: false },
       spanGaps: true,
-      fill: e.fill,
     });
   }
-  const cols = aligned.cols;
   const opts = {
+    ...chartDefaults,
     width: chartWidth(el),
-    height: 260,
-    ms: true,
-    scales: { x: { time: true } },
+    height: 280,
+    scales: { x: { time: true }, y: { auto: false, range: () => [0, softMax] } },
     series,
   };
-  const up = new uPlot(opts, [xs, ...cols], el);
-  settleSize(up, el, 260);
+  const up = new uPlot(opts, data, el);
+  settleSize(up, el, 280);
   return up;
+}
+
+// ---------- infrared palette (thermal camera look) ----------
+const IR_STOPS = [
+  [0.0, [1, 1, 8]],
+  [0.2, [41, 12, 106]],
+  [0.45, [172, 20, 88]],
+  [0.7, [240, 100, 40]],
+  [0.9, [252, 180, 25]],
+  [1.0, [255, 245, 200]],
+];
+function infrared(t) {
+  t = Math.max(0, Math.min(1, t));
+  for (let i = 1; i < IR_STOPS.length; i++) {
+    if (t <= IR_STOPS[i][0]) {
+      const [t0, c0] = IR_STOPS[i - 1];
+      const [t1, c1] = IR_STOPS[i];
+      const f = (t - t0) / (t1 - t0);
+      return c0.map((v, k) => Math.round(v + (c1[k] - v) * f));
+    }
+  }
+  return IR_STOPS[IR_STOPS.length - 1][1];
+}
+
+// Heatmap view: one row per site, columns = time buckets, color = infrared
+// intensity of the peak CPU in that bucket. Rows sorted by total, hottest
+// site on top.
+function drawHeatmap(el, entries) {
+  el.innerHTML = "";
+  const COLS = 28;
+  const xsSet = new Set();
+  for (const e of entries) for (const [t] of e.series) xsSet.add(t);
+  const xs = [...xsSet].sort((a, b) => a - b);
+  if (!xs.length) { el.innerHTML = '<p class="hint" style="padding:20px">no data yet</p>'; return; }
+  const colOf = new Map(xs.map((t, i) => [t, Math.min(COLS - 1, Math.floor((i / xs.length) * COLS))]));
+
+  const rows = entries.map((e) => {
+    const cells = new Array(COLS).fill(null);
+    for (const [t, v] of e.series) {
+      const c = colOf.get(t);
+      cells[c] = Math.max(cells[c] ?? 0, v);
+    }
+    return { name: e.name, color: e.color, cells, total: cells.reduce((a, b) => a + (b || 0), 0) };
+  }).sort((a, b) => b.total - a.total);
+  const gMax = Math.max(...rows.flatMap((r) => r.cells.filter((c) => c != null)), 0.001);
+
+  const grid = document.createElement("div");
+  grid.style.cssText = "display:grid;grid-template-columns:200px repeat(" + COLS + ",1fr);gap:3px;margin-top:4px";
+  grid.appendChild(document.createElement("div"));
+  for (let cI = 0; cI < COLS; cI++) {
+    const h = document.createElement("div");
+    h.style.cssText = "font-size:10px;color:var(--muted);text-align:center";
+    const t = xs[Math.min(xs.length - 1, Math.floor(((cI + 0.5) / COLS) * xs.length))];
+    h.textContent = new Date(t * 1000).getHours() + "h";
+    grid.appendChild(h);
+  }
+  for (const row of rows) {
+    const lbl = document.createElement("div");
+    lbl.style.cssText = "font-size:11.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:right;padding-right:8px;align-self:center";
+    lbl.textContent = row.name; lbl.title = row.name;
+    grid.appendChild(lbl);
+    for (let cI = 0; cI < COLS; cI++) {
+      const v = row.cells[cI];
+      const cell = document.createElement("div");
+      cell.style.height = "17px";
+      cell.style.borderRadius = "3px";
+      if (v == null) {
+        cell.style.background = "var(--panel2)";
+      } else {
+        const [r, g, b] = infrared(v / gMax);
+        cell.style.background = `rgb(${r},${g},${b})`;
+        cell.title = row.name + " — " + v.toFixed(2) + "%";
+      }
+      grid.appendChild(cell);
+    }
+  }
+  el.appendChild(grid);
 }
 
 function lineChart(el, defs, height = 190, yFmt = (v) => v) {
@@ -236,9 +367,26 @@ function sparkline(series, color) {
   return `<svg width="${w}" height="${h}"><polyline points="${pts}" fill="none" stroke="${color}" stroke-width="1.4"/></svg>`;
 }
 
+function renderViewToggle() {
+  const el = $("viewToggle");
+  el.innerHTML = "";
+  for (const [v, label] of [["areas", "Areas"], ["heat", "Heatmap"]]) {
+    const b = document.createElement("button");
+    b.textContent = label;
+    if (state.chartView === v) b.classList.add("active");
+    b.addEventListener("click", () => {
+      state.chartView = v;
+      if (state.lastOverview) renderOverview(state.lastOverview);
+    });
+    el.appendChild(b);
+  }
+}
+
 function renderOverview(d) {
+  state.lastOverview = d;
   renderChips(d.now);
   renderRanges($("ranges"), state.range, (r) => { state.range = r; route(); });
+  renderViewToggle();
 
   const entries = d.sites
     .filter((s) => s.series && s.series.length)
@@ -247,8 +395,13 @@ function renderOverview(d) {
       return { name: s.name === "_sys" ? "System services" : s.name, color: c.css, fill: c.fill, series: s.series };
     });
   const el = $("mainChart");
-  if (entries.length) stackedChart(el, entries);
-  else el.innerHTML = '<p class="hint" style="padding:20px">collecting data… first chart available ~1 minute after start</p>';
+  if (!entries.length) {
+    el.innerHTML = '<p class="hint" style="padding:20px">collecting data… first chart available ~1 minute after start</p>';
+  } else if (state.chartView === "heat") {
+    drawHeatmap(el, entries);
+  } else {
+    stackedChart(el, entries);
+  }
 
   const tbody = $("siteTable").querySelector("tbody");
   tbody.innerHTML = "";

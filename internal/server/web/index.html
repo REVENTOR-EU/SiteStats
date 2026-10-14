@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>website-stats</title>
+<title>SiteStats</title>
 <link rel="stylesheet" href="/static/app.css?v=13">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%93%88%3C/text%3E%3C/svg%3E">
 </head>
@@ -11,7 +11,7 @@
 
 <div id="login" class="login-overlay hidden">
   <form class="login-card" id="loginForm">
-    <h1>website-stats</h1>
+    <h1>SiteStats</h1>
     <p>self-hosted per-site monitoring</p>
     <input type="password" id="loginPassword" placeholder="Password" autocomplete="current-password" autofocus>
     <button type="submit">Sign in</button>
@@ -32,7 +32,10 @@
   <section id="overview">
     <div class="row spread">
       <h2>CPU by site <span class="hint">% of total server capacity, per site</span></h2>
-      <div class="ranges" id="ranges"></div>
+      <div style="display:flex;gap:12px;align-items:center">
+        <div class="ranges" id="viewToggle"></div>
+        <div class="ranges" id="ranges"></div>
+      </div>
     </div>
     <div class="card chart-wrap"><div id="mainChart"></div></div>
 
@@ -88,6 +91,6 @@
 <footer>SiteStats <span id="ver"></span> · times in your local timezone</footer>
 
 <script src="/static/uplot.iife.min.js?v=13"></script>
-<script src="/static/app.js?v=18"></script>
+<script src="/static/app.js?v=22"></script>
 </body>
 </html>
