@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>SiteStats</title>
-<link rel="stylesheet" href="/static/app.css?v=13">
+<link rel="stylesheet" href="/static/app.css?v=23">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%93%88%3C/text%3E%3C/svg%3E">
 </head>
 <body>
@@ -25,8 +25,28 @@
     <span class="brand-host">per-site monitoring</span>
   </div>
   <div class="chips" id="chips"></div>
-  <button id="logoutBtn" class="btn ghost" title="Sign out">Sign out</button>
+  <div class="profile-menu">
+    <button id="profileBtn" class="profile-btn" title="Account">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+    </button>
+    <div id="profileDropdown" class="dropdown hidden">
+      <button id="changePwBtn">Change password…</button>
+      <button id="signoutBtn">Sign out</button>
+    </div>
+  </div>
 </header>
+
+<div id="pwModal" class="login-overlay hidden">
+  <form class="login-card" id="pwForm">
+    <h1>Change password</h1>
+    <p id="pwModalSub">Enter a new password for this dashboard.</p>
+    <input type="password" id="pwCurrent" placeholder="Current password" autocomplete="current-password">
+    <input type="password" id="pwNew" placeholder="New password (min. 8 characters)" autocomplete="new-password">
+    <input type="password" id="pwConfirm" placeholder="Confirm new password" autocomplete="new-password">
+    <button type="submit">Save password</button>
+    <div id="pwError" class="login-error hidden"></div>
+  </form>
+</div>
 
 <main id="app">
   <section id="overview">
@@ -91,6 +111,6 @@
 <footer>SiteStats <span id="ver"></span> · times in your local timezone</footer>
 
 <script src="/static/uplot.iife.min.js?v=13"></script>
-<script src="/static/app.js?v=22"></script>
+<script src="/static/app.js?v=23"></script>
 </body>
 </html>

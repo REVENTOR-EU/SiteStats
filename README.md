@@ -84,11 +84,15 @@ ssh root@your-server
 install -d /opt/sitestats /var/lib/sitestats
 install -m 0755 /tmp/sitestats /opt/sitestats/sitestats
 install -m 0644 /tmp/sitestats.service /etc/systemd/system/sitestats.service
-/opt/sitestats/sitestats -config /opt/sitestats/config.yml set-password
 systemctl daemon-reload && systemctl enable --now sitestats
 ```
 
-The dashboard now listens on `127.0.0.1:8811`. Verify discovery with:
+The dashboard now listens on `127.0.0.1:8811`. On first visit you'll be asked to
+**choose a dashboard password** right in the browser (it can be changed later via the
+profile menu, top right). Alternatively set it via CLI:
+`/opt/sitestats/sitestats -config /opt/sitestats/config.yml set-password`.
+
+Verify site discovery with:
 
 ```bash
 /opt/sitestats/sitestats -config /opt/sitestats/config.yml inspect

@@ -7,6 +7,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"io/fs"
+	"log"
 	"net/http"
 	"sort"
 	"strconv"
@@ -33,19 +34,35 @@ const sessionCookie = "ws_session"
 const Version = "1.0.0"
 
 type Server struct {
-	cfg  *config.Config
-	st   *store.Store
-	col  *engine.Collector
-	attM struct {
+	cfg        *config.Config
+	configPath string
+	st         *store.Store
+	col        *engine.Collector
+	attM       struct {
 		sync.Mutex
 		m map[string][]time.Time // ip -> failed login times
 	}
 }
 
-func New(cfg *config.Config, st *store.Store, col *engine.Collector) *Server {
-	s := &Server{cfg: cfg, st: st, col: col}
+func New(cfg *config.Config, st *store.Store, col *engine.Collector, configPath string) *Server {
+	s := &Server{cfg: cfg, configPath: configPath, st: st, col: col}
 	s.attM.m = map[string][]time.Time{}
 	return s
+}
+
+// savePasswordHash persists the bcrypt hash to the config file and applies
+// it to the live config.
+func (s *Server) savePasswordHash(hash string) error {
+	if s.configPath != "" {
+		if cfg, err := config.Load(s.configPath); err == nil {
+			cfg.PasswordHash = hash
+			if err := config.Save(s.configPath, cfg); err != nil {
+				return err
+			}
+		}
+	}
+	s.cfg.PasswordHash = hash
+	return nil
 }
 
 func (s *Server) Handler() http.Handler {
@@ -61,6 +78,9 @@ func (s *Server) Handler() http.Handler {
 		w.Header().Set("Cache-Control", "no-cache")
 		s.handleIndex(w, r)
 	})
+	mux.HandleFunc("GET /api/setup-status", s.handleSetupStatus)
+	mux.HandleFunc("POST /api/setup-password", s.handleSetupPassword)
+	mux.HandleFunc("POST /api/password", s.auth(s.handlePasswordChange))
 	mux.HandleFunc("POST /api/login", s.handleLogin)
 	mux.HandleFunc("POST /api/logout", s.auth(s.handleLogout))
 	mux.HandleFunc("GET /api/meta", s.auth(s.handleMeta))
@@ -176,6 +196,77 @@ func (s *Server) handleLogout(w http.ResponseWriter, r *http.Request) {
 		s.st.DeleteSession(c.Value)
 	}
 	http.SetCookie(w, &http.Cookie{Name: sessionCookie, Value: "", Path: "/", MaxAge: -1})
+	writeJSON(w, 200, map[string]bool{"ok": true})
+}
+
+// --- password management ----------------------------------------------------
+
+// handleSetupStatus tells the UI whether a password has been configured yet
+// (public: it only reveals whether first-time setup is pending).
+func (s *Server) handleSetupStatus(w http.ResponseWriter, r *http.Request) {
+	writeJSON(w, 200, map[string]bool{"configured": s.cfg.PasswordHash != ""})
+}
+
+// handleSetupPassword sets the initial password; only works while no
+// password is configured.
+func (s *Server) handleSetupPassword(w http.ResponseWriter, r *http.Request) {
+	if s.cfg.PasswordHash != "" {
+		writeErr(w, http.StatusForbidden, "password already configured — sign in and use the profile menu to change it")
+		return
+	}
+	var req struct {
+		Password string `json:"password"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeErr(w, http.StatusBadRequest, "bad request")
+		return
+	}
+	if len(req.Password) < 8 {
+		writeErr(w, http.StatusBadRequest, "password must be at least 8 characters")
+		return
+	}
+	hash, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
+	if err != nil {
+		writeErr(w, 500, "hash failed")
+		return
+	}
+	if err := s.savePasswordHash(string(hash)); err != nil {
+		writeErr(w, 500, "could not persist password: "+err.Error())
+		return
+	}
+	log.Printf("initial password set via web interface")
+	writeJSON(w, 200, map[string]bool{"ok": true})
+}
+
+// handlePasswordChange lets a signed-in user set a new password.
+func (s *Server) handlePasswordChange(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		Current string `json:"current"`
+		New     string `json:"new"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeErr(w, http.StatusBadRequest, "bad request")
+		return
+	}
+	if len(req.New) < 8 {
+		writeErr(w, http.StatusBadRequest, "new password must be at least 8 characters")
+		return
+	}
+	if s.cfg.PasswordHash != "" &&
+		bcrypt.CompareHashAndPassword([]byte(s.cfg.PasswordHash), []byte(req.Current)) != nil {
+		writeErr(w, http.StatusForbidden, "current password is wrong")
+		return
+	}
+	hash, err := bcrypt.GenerateFromPassword([]byte(req.New), bcrypt.DefaultCost)
+	if err != nil {
+		writeErr(w, 500, "hash failed")
+		return
+	}
+	if err := s.savePasswordHash(string(hash)); err != nil {
+		writeErr(w, 500, "could not persist password: "+err.Error())
+		return
+	}
+	log.Printf("password changed via web interface")
 	writeJSON(w, 200, map[string]bool{"ok": true})
 }
 

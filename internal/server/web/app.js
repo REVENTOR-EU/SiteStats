@@ -95,13 +95,75 @@ async function tryLogin(password) {
 }
 $("loginForm").addEventListener("submit", async (e) => {
   e.preventDefault();
-  const err = await tryLogin($("loginPassword").value);
   const el = $("loginError");
-  if (err) { el.textContent = err; el.classList.remove("hidden"); }
+  const showErr = (msg) => { el.textContent = msg; el.classList.remove("hidden"); };
+  if ($("loginPassword").dataset.mode === "setup") {
+    const pw = $("loginPassword").value;
+    if (pw.length < 8) return showErr("Password must be at least 8 characters.");
+    const res = await fetch("/api/setup-password", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ password: pw }),
+    });
+    if (!res.ok) {
+      const j = await res.json().catch(() => ({}));
+      return showErr(j.error || "setup failed");
+    }
+    delete $("loginPassword").dataset.mode;
+    const err = await tryLogin(pw);
+    if (err) return showErr(err);
+    return;
+  }
+  const err = await tryLogin($("loginPassword").value);
+  if (err) showErr(err);
 });
-$("logoutBtn").addEventListener("click", async () => {
+/* ---------- profile menu & password ---------- */
+
+$("profileBtn").addEventListener("click", (e) => {
+  e.stopPropagation();
+  $("profileDropdown").classList.toggle("hidden");
+});
+document.addEventListener("click", (e) => {
+  if (!e.target.closest(".profile-menu")) $("profileDropdown").classList.add("hidden");
+});
+$("signoutBtn").addEventListener("click", async () => {
   await fetch("/api/logout", { method: "POST" });
+  $("profileDropdown").classList.add("hidden");
   showLogin();
+});
+
+function showPwModal(mode) {
+  $("pwModal").classList.remove("hidden");
+  $("pwError").classList.add("hidden");
+  $("pwCurrent").classList.toggle("hidden", mode === "setup");
+  $("pwCurrent").value = "";
+  $("pwNew").value = "";
+  $("pwConfirm").value = "";
+  $("pwModal").dataset.mode = mode;
+  $("pwNew").focus();
+}
+$("changePwBtn").addEventListener("click", () => {
+  $("profileDropdown").classList.add("hidden");
+  showPwModal("change");
+});
+$("pwModal").addEventListener("click", (e) => {
+  if (e.target === e.currentTarget) $("pwModal").classList.add("hidden");
+});
+$("pwForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const err = (msg) => { $("pwError").textContent = msg; $("pwError").classList.remove("hidden"); };
+  const mode = $("pwModal").dataset.mode;
+  const nw = $("pwNew").value, cf = $("pwConfirm").value;
+  if (nw.length < 8) return err("New password must be at least 8 characters.");
+  if (nw !== cf) return err("Passwords do not match.");
+  const url = mode === "setup" ? "/api/setup-password" : "/api/password";
+  const body = mode === "setup" ? { password: nw } : { current: $("pwCurrent").value, new: nw };
+  const res = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+  if (!res.ok) {
+    const j = await res.json().catch(() => ({}));
+    return err(j.error || "failed");
+  }
+  $("pwModal").classList.add("hidden");
 });
 
 /* ---------- charts ---------- */
@@ -523,7 +585,22 @@ $("backLink").addEventListener("click", (e) => { e.preventDefault(); location.ha
 
 /* ---------- boot ---------- */
 
+// First-time setup: no password configured yet → the login card becomes a
+// "choose a password" form.
+function showSetupMode() {
+  showLogin();
+  document.querySelector("#loginForm h1").textContent = "First-time setup";
+  document.querySelector("#loginForm p").textContent = "Choose a password for this dashboard.";
+  $("loginPassword").placeholder = "Choose a password (min. 8 characters)";
+  $("loginPassword").dataset.mode = "setup";
+  $("loginPassword").focus();
+}
+
 (async function boot() {
+  try {
+    const st = await fetch("/api/setup-status").then((r) => r.json());
+    if (st && st.configured === false) { showSetupMode(); return; }
+  } catch (e) { /* fall through to normal login */ }
   try {
     const meta = await api("/api/meta");
     $("ver").textContent = "v" + meta.version;

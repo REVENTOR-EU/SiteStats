@@ -88,6 +88,16 @@ type WebhookConfig struct {
 	URL     string `yaml:"url"`
 }
 
+// Save writes the config back to path as YAML (0600). Note: YAML comments
+// in the file are lost.
+func Save(path string, c *Config) error {
+	out, err := yaml.Marshal(c)
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(path, out, 0o600)
+}
+
 // Load reads the YAML config at path and applies defaults for empty fields.
 func Load(path string) (*Config, error) {
 	b, err := os.ReadFile(path)
