@@ -2,6 +2,10 @@
 "use strict";
 
 const $ = (id) => document.getElementById(id);
+
+// HTML-escape untrusted strings (request paths and client IPs from access
+// logs are attacker-controlled) before inserting them into templates.
+const esc = (s) => String(s).replace(/[&<>"']/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[ch]));
 const state = {
   range: "24h",
   view: "overview",
@@ -475,8 +479,8 @@ function renderOverview(d) {
     const barCol = s.cpu > 80 ? "var(--red)" : s.cpu > 50 ? "var(--yellow)" : "var(--green)";
     tr.innerHTML = `
       <td><span class="swatch" style="background:${c.css}"></span>
-          <span class="site-name">${isSys ? "System services" : s.name}</span>
-          ${isSys ? "" : `<span class="site-domain"> ${s.domain}</span>`}</td>
+          <span class="site-name">${esc(isSys ? "System services" : s.name)}</span>
+          ${isSys ? "" : `<span class="site-domain"> ${esc(s.domain)}</span>`}</td>
       <td class="num">${fmtPct(s.cpu)}<span class="cpubar"><span style="width:${Math.min(100, s.cpu)}%;background:${barCol}"></span></span></td>
       <td class="num">${fmtBytes(s.mem * 1048576)}</td>
       <td class="num">${fmtInt(s.req)}</td>
@@ -490,7 +494,7 @@ function renderOverview(d) {
 
   const list = $("eventsList");
   list.innerHTML = d.events.length
-    ? d.events.map((e) => `<li><span class="when">${fmtTs(e.ts)}</span><span class="sev ${e.severity || "warning"}">${e.severity || "warning"}</span><span><b>${e.site}</b> — ${e.message}</span></li>`).join("")
+    ? d.events.map((e) => `<li><span class="when">${fmtTs(e.ts)}</span><span class="sev ${esc(e.severity || "warning")}">${esc(e.severity || "warning")}</span><span><b>${esc(e.site)}</b> — ${esc(e.message)}</span></li>`).join("")
     : '<li class="empty">no alerts fired yet</li>';
 }
 
@@ -507,7 +511,7 @@ function statCard(label, value, cls) {
 
 function kvList(items, fmt) {
   if (!items || !items.length) return '<li class="empty">no data yet</li>';
-  return items.map((it) => `<li><span class="k" title="${it.value}">${it.value}</span><span class="v">${fmt(it)}</span></li>`).join("");
+  return items.map((it) => `<li><span class="k" title="${esc(it.value)}">${esc(it.value)}</span><span class="v">${fmt(it)}</span></li>`).join("");
 }
 
 function renderSite(d) {
@@ -551,7 +555,7 @@ function renderSite(d) {
   if (d.disk.length) lineChart($("diskChart"), [{ name: "disk", color: "#4c8dff", series: d.disk }], 170, (v) => fmtBytes(v));
 
   $("siteEvents").innerHTML = d.events.length
-    ? d.events.map((e) => `<li><span class="when">${fmtTs(e.ts)}</span><span class="sev ${e.severity || "warning"}">${e.severity || "warning"}</span><span>${e.message}</span></li>`).join("")
+    ? d.events.map((e) => `<li><span class="when">${fmtTs(e.ts)}</span><span class="sev ${esc(e.severity || "warning")}">${esc(e.severity || "warning")}</span><span>${esc(e.message)}</span></li>`).join("")
     : '<li class="empty">no alerts for this site</li>';
 }
 
