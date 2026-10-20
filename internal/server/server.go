@@ -570,6 +570,7 @@ type settingsJSON struct {
 		Enabled     bool     `json:"enabled"`
 		SmtpHost    string   `json:"smtpHost"`
 		Username    string   `json:"username"`
+		Password    string   `json:"password"` // write-only; blank keeps the stored one
 		HasPassword bool     `json:"hasPassword"`
 		From        string   `json:"from"`
 		To          []string `json:"to"`
@@ -621,6 +622,10 @@ func settingsToAlerts(sj settingsJSON, prev config.AlertConfig) (config.AlertCon
 			To:       []string{},
 		},
 		Webhook: config.WebhookConfig{Enabled: sj.Webhook.Enabled, URL: strings.TrimSpace(sj.Webhook.URL)},
+	}
+	// a non-empty submitted password replaces the stored one
+	if p := sj.Email.Password; p != "" {
+		ac.Email.Password = p
 	}
 	if ac.Email.Host != "" && !strings.Contains(ac.Email.Host, ":") {
 		ac.Email.Host += ":587"
@@ -747,7 +752,10 @@ func (s *Server) handleTestEmail(w http.ResponseWriter, r *http.Request) {
 		Ts: time.Now().Unix(), Rule: "test", Site: "_system", Severity: "info",
 		Message: "This is a test message from website-stats. If you read this, mail alerts are set up correctly.",
 	}
-	if err := alerter.NotifyEmail(ac.Email, ev); err != nil {
+	// the probe must send even when the email channel is switched off
+	ec := ac.Email
+	ec.Enabled = true
+	if err := alerter.NotifyEmail(ec, ev); err != nil {
 		writeErr(w, http.StatusBadGateway, "SMTP test failed: "+err.Error())
 		return
 	}

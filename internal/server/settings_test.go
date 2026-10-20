@@ -65,6 +65,8 @@ func TestSettingsSavePersistsAndApplies(t *testing.T) {
 	payload.Email.SmtpHost = "mail2.example.com"
 	payload.Email.From = "a@b.c"
 	payload.Email.To = []string{"x@y.z"}
+	payload.Email.Password = "new-secret"
+	payload.Email.To = []string{"x@y.z"}
 	payload.Rules = []ruleJSON{
 		{Name: "cpu-rule", Metric: "site.cpu", Site: "*", Op: ">", Value: 50, For: "2m", Cooldown: "30m", Severity: "critical"},
 		{Name: "bad", Metric: "nope", Op: ">", Value: 1},
@@ -88,9 +90,9 @@ func TestSettingsSavePersistsAndApplies(t *testing.T) {
 	if s.cfg.Alerts.Email.Host != "mail2.example.com:587" {
 		t.Fatalf("live config not updated: %q", s.cfg.Alerts.Email.Host)
 	}
-	// saved password survived a blank-password save
-	if s.cfg.Alerts.Email.Password != "saved-secret" {
-		t.Fatalf("password must be preserved when left blank")
+	// submitted password replaced the stored one
+	if s.cfg.Alerts.Email.Password != "new-secret" {
+		t.Fatalf("submitted password not saved: %q", s.cfg.Alerts.Email.Password)
 	}
 	// alerter rules swapped
 	if len(s.al.Evaluate(nil, 1000)) != 0 {

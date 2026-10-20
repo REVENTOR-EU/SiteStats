@@ -2,8 +2,10 @@ package alerter
 
 import (
 	"bytes"
+	"crypto/tls"
 	"encoding/json"
 	"fmt"
+	"net"
 	"net/http"
 	"net/smtp"
 	"strings"
@@ -12,15 +14,85 @@ import (
 	"github.com/REVENTOR-EU/SiteStats/internal/config"
 )
 
-// NotifyEmail sends the alert via SMTP (STARTTLS when offered).
+// sendMail delivers msg to all recipients. Ports 465 use implicit TLS
+// (the server expects the TLS handshake before the SMTP greeting); other
+// ports use STARTTLS when offered. Every connection gets a deadline so a
+// silent server can't hang an alert dispatch.
+func sendMail(cfg config.EmailConfig, from string, to []string, msg []byte) error {
+	host, port, _ := strings.Cut(cfg.Host, ":")
+	if port == "" {
+		port = "587"
+	}
+	addr := net.JoinHostPort(host, port)
+
+	deadline := time.Now().Add(30 * time.Second)
+	var conn net.Conn
+	var err error
+	if port == "465" {
+		conn, err = tls.DialWithDialer(&net.Dialer{Timeout: 15 * time.Second}, "tcp", addr,
+			&tls.Config{ServerName: host})
+	} else {
+		conn, err = net.DialTimeout("tcp", addr, 15*time.Second)
+	}
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+	conn.SetDeadline(deadline)
+
+	c, err := smtp.NewClient(conn, host)
+	if err != nil {
+		return err
+	}
+	defer c.Close()
+
+	if err = c.Hello("localhost"); err != nil {
+		return err
+	}
+	if port != "465" {
+		if ok, _ := c.Extension("STARTTLS"); ok {
+			if err = c.StartTLS(&tls.Config{ServerName: host}); err != nil {
+				return err
+			}
+		}
+	}
+	if cfg.Username != "" {
+		auth := smtp.PlainAuth("", cfg.Username, cfg.Password, host)
+		if ok, _ := c.Extension("AUTH"); ok {
+			if err = c.Auth(auth); err != nil {
+				return fmt.Errorf("auth failed: %w", err)
+			}
+		}
+	}
+	if err = c.Mail(from); err != nil {
+		return err
+	}
+	for _, rcpt := range to {
+		if err = c.Rcpt(rcpt); err != nil {
+			return err
+		}
+	}
+	w, err := c.Data()
+	if err != nil {
+		return err
+	}
+	if _, err = w.Write(msg); err != nil {
+		return err
+	}
+	if err = w.Close(); err != nil {
+		return err
+	}
+	return c.Quit()
+}
+
+// NotifyEmail sends the alert via SMTP.
 func NotifyEmail(cfg config.EmailConfig, ev Event) error {
 	if !cfg.Enabled || len(cfg.To) == 0 {
 		return nil
 	}
 	host := cfg.Host
-	addr := host
 	if !strings.Contains(host, ":") {
-		addr = host + ":587"
+		host = host + ":587"
 	}
 	subject := fmt.Sprintf("[website-stats][%s] %s on %s", ev.Severity, ev.Rule, ev.Site)
 	body := fmt.Sprintf("Time: %s\nRule: %s\nSite: %s\n\n%s\n",
@@ -39,12 +111,7 @@ func NotifyEmail(cfg config.EmailConfig, ev Event) error {
 		body,
 	}, "\r\n")
 
-	var auth smtp.Auth
-	if cfg.Username != "" {
-		hostOnly, _, _ := strings.Cut(host, ":")
-		auth = smtp.PlainAuth("", cfg.Username, cfg.Password, hostOnly)
-	}
-	return smtp.SendMail(addr, auth, from, cfg.To, []byte(msg))
+	return sendMail(cfg, from, cfg.To, []byte(msg))
 }
 
 // NotifyWebhook posts the alert as JSON to the configured URL.
