@@ -4,6 +4,7 @@ package alerter
 
 import (
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 
@@ -70,6 +71,12 @@ func metricValue(metric string, row *collect.MinuteRow, memTotalMB float64) (flo
 		return float64(row.R5xx), true
 	case "system.cpu":
 		return row.CPU, true
+	case "system.load1":
+		return row.Load1, true
+	case "system.load5":
+		return row.Load5, true
+	case "system.load15":
+		return row.Load15, true
 	}
 	return 0, false
 }
@@ -102,10 +109,11 @@ func (a *Alerter) Evaluate(rows []collect.MinuteRow, memTotalMB float64) []Event
 			if rule.Site != "*" && rule.Site != row.Site {
 				continue
 			}
-			if rule.Metric == "system.cpu" && row.Site != "_system" {
+			isSystem := strings.HasPrefix(rule.Metric, "system.")
+			if isSystem && row.Site != "_system" {
 				continue
 			}
-			if rule.Metric != "system.cpu" && row.Site == "_system" {
+			if !isSystem && row.Site == "_system" {
 				continue
 			}
 			key := rule.Name + "|" + row.Site
@@ -149,8 +157,8 @@ func (a *Alerter) Evaluate(rows []collect.MinuteRow, memTotalMB float64) []Event
 }
 
 func displayName(site, metric string) string {
-	if metric == "system.cpu" {
-		return "system cpu"
+	if strings.HasPrefix(metric, "system.") {
+		return "system " + strings.TrimPrefix(metric, "system.")
 	}
 	return fmt.Sprintf("site %s", site)
 }

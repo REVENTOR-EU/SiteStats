@@ -73,7 +73,7 @@ func scanProc(st *procState, reg *sites.Registry) Snapshot {
 		snap.System.MemUsedMB = float64(t-a) / 1024
 	}
 	if b, err := os.ReadFile("/proc/loadavg"); err == nil {
-		snap.System.Load1 = parseLoadavg(string(b))
+		snap.System.Load1, snap.System.Load5, snap.System.Load15 = parseLoadavg(string(b))
 	}
 	if b, err := os.ReadFile("/proc/net/dev"); err == nil {
 		rx, tx := parseNetDev(string(b))

@@ -112,6 +112,8 @@ func (c *Collector) demoSnapshot(elapsed float64, sims map[string]demoSim, now t
 		MemUsedMB:   3400 + math.Sin(elapsed/30)*120,
 		MemTotalMB:  7929,
 		Load1:       0.4 + sysCPU/12,
+		Load5:       0.4 + sysCPU/14,
+		Load15:      0.4 + sysCPU/16,
 		NetRx:       60000 + sysCPU*3000,
 		NetTx:       90000 + sysCPU*5000,
 		DiskUsedGB:  87,

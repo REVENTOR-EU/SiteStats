@@ -180,5 +180,6 @@ func DefaultAlertRules() []AlertRule {
 		{Name: "site-high-cpu", Metric: "site.cpu", Site: "*", Op: ">", Value: 40, For: Duration{5 * time.Minute}, Cooldown: Duration{time.Hour}, Severity: "warning"},
 		{Name: "site-5xx-spike", Metric: "site.err5", Site: "*", Op: ">", Value: 20, For: Duration{5 * time.Minute}, Cooldown: Duration{time.Hour}, Severity: "warning"},
 		{Name: "system-high-cpu", Metric: "system.cpu", Site: "*", Op: ">", Value: 85, For: Duration{5 * time.Minute}, Cooldown: Duration{time.Hour}, Severity: "critical"},
+		{Name: "system-high-load5", Metric: "system.load5", Site: "*", Op: ">", Value: 4, For: Duration{5 * time.Minute}, Cooldown: Duration{time.Hour}, Severity: "warning"},
 	}
 }

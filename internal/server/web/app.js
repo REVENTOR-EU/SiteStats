@@ -187,6 +187,9 @@ const METRICS = [
   ["site.req", "Site requests/min"],
   ["site.err5", "Site 5xx/min"],
   ["system.cpu", "System CPU %"],
+  ["system.load1", "System load (1 min)"],
+  ["system.load5", "System load (5 min)"],
+  ["system.load15", "System load (15 min)"],
 ];
 
 let draftRules = [];

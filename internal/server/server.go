@@ -549,7 +549,8 @@ func (s *Server) handleEvents(w http.ResponseWriter, r *http.Request) {
 
 var validAlertMetrics = map[string]bool{
 	"site.cpu": true, "site.mem": true, "site.mem_pct": true,
-	"site.req": true, "site.err5": true, "system.cpu": true,
+	"site.req": true, "site.err5": true,
+	"system.cpu": true, "system.load1": true, "system.load5": true, "system.load15": true,
 }
 
 var validAlertOps = map[string]bool{">": true, ">=": true, "<": true, "<=": true}

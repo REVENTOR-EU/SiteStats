@@ -36,6 +36,8 @@ type SystemLive struct {
 	MemUsedMB   float64 `json:"memUsedMb"`
 	MemTotalMB  float64 `json:"memTotalMb"`
 	Load1       float64 `json:"load1"`
+	Load5       float64 `json:"load5"`
+	Load15      float64 `json:"load15"`
 	NetRx       float64 `json:"netRx"` // bytes/sec
 	NetTx       float64 `json:"netTx"`
 	DiskUsedGB  float64 `json:"diskUsedGb"`
@@ -65,4 +67,8 @@ type MinuteRow struct {
 	FpmIdle   int
 	FpmQueue  int
 	FpmReq    int64 // delta of accepted conns in minute
+	// load averages, system pseudo-row only
+	Load1  float64
+	Load5  float64
+	Load15 float64
 }

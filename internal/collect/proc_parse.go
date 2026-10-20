@@ -105,14 +105,16 @@ func parseMeminfo(content string) (totalKB, availKB uint64) {
 	return totalKB, availKB
 }
 
-// parseLoadavg returns the 1-minute load average.
-func parseLoadavg(content string) float64 {
+// parseLoadavg returns the 1, 5 and 15-minute load averages.
+func parseLoadavg(content string) (load1, load5, load15 float64) {
 	fields := strings.Fields(content)
-	if len(fields) == 0 {
-		return 0
+	if len(fields) < 3 {
+		return
 	}
-	v, _ := strconv.ParseFloat(fields[0], 64)
-	return v
+	load1, _ = strconv.ParseFloat(fields[0], 64)
+	load5, _ = strconv.ParseFloat(fields[1], 64)
+	load15, _ = strconv.ParseFloat(fields[2], 64)
+	return
 }
 
 // parseNetDev sums received/sent bytes over all interfaces except lo.

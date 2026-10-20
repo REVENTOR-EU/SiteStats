@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	_ "modernc.org/sqlite"
 
@@ -105,6 +106,16 @@ func (s *Store) migrate() error {
 			return fmt.Errorf("migrate: %w", err)
 		}
 	}
+	// additive migrations: ignore "duplicate column" on upgrades
+	for _, col := range []string{
+		`ALTER TABLE samples ADD COLUMN load1 REAL NOT NULL DEFAULT -1`,
+		`ALTER TABLE samples ADD COLUMN load5 REAL NOT NULL DEFAULT -1`,
+		`ALTER TABLE samples ADD COLUMN load15 REAL NOT NULL DEFAULT -1`,
+	} {
+		if _, err := s.db.Exec(col); err != nil && !strings.Contains(err.Error(), "duplicate column") {
+			return fmt.Errorf("migrate: %w", err)
+		}
+	}
 	return nil
 }
 
@@ -119,15 +130,15 @@ func (s *Store) InsertMinute(rows []collect.MinuteRow) error {
 	}
 	defer tx.Rollback()
 	stmt, err := tx.Prepare(`INSERT OR REPLACE INTO samples
-		(ts, site, cpu, mem, procs, req, bytes, r4, r5, fpm_active, fpm_idle, fpm_queue, fpm_req)
-		VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`)
+		(ts, site, cpu, mem, procs, req, bytes, r4, r5, fpm_active, fpm_idle, fpm_queue, fpm_req, load1, load5, load15)
+		VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`)
 	if err != nil {
 		return err
 	}
 	defer stmt.Close()
 	for _, r := range rows {
 		if _, err := stmt.Exec(r.Ts, r.Site, r.CPU, r.MemMB, r.Procs, r.Req, r.Bytes, r.R4xx, r.R5xx,
-			r.FpmActive, r.FpmIdle, r.FpmQueue, r.FpmReq); err != nil {
+			r.FpmActive, r.FpmIdle, r.FpmQueue, r.FpmReq, r.Load1, r.Load5, r.Load15); err != nil {
 			return err
 		}
 	}

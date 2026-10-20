@@ -52,6 +52,21 @@ func TestEvaluateFiresAfterFor(t *testing.T) {
 	}
 }
 
+func TestLoadMetricFiresOnSystemRow(t *testing.T) {
+	now := int64(1000)
+	a := New(config.AlertConfig{Rules: []config.AlertRule{rule("load", "system.load5", 4)}})
+	a.nowFn = func() int64 { return now }
+	sys := collect.MinuteRow{Site: "_system", Load5: 6.2}
+	site := collect.MinuteRow{Site: "site1", CPU: 90}
+
+	a.Evaluate([]collect.MinuteRow{sys, site}, 1000)
+	now += 61
+	ev := a.Evaluate([]collect.MinuteRow{sys, site}, 1000)
+	if len(ev) != 1 || ev[0].Site != "_system" {
+		t.Fatalf("expected load alert on _system, got %+v", ev)
+	}
+}
+
 func TestUpdateConfigSwapsRulesAndClearsBreach(t *testing.T) {
 	now := int64(1000)
 	a := New(config.AlertConfig{Rules: []config.AlertRule{rule("r", "site.cpu", 40)}})

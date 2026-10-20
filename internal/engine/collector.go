@@ -288,6 +288,8 @@ func (c *Collector) flushMinute(minuteTs int64) {
 	}
 	if snap := c.latest.Load(); snap != nil {
 		sysRow.MemMB = snap.System.MemUsedMB
+		sysRow.Load1 = snap.System.Load1
+		sysRow.Load5, sysRow.Load15 = snap.System.Load5, snap.System.Load15
 	}
 	rows = append(rows, sysRow)
 
