@@ -6,6 +6,7 @@ import (
 	"embed"
 	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"io/fs"
 	"log"
 	"net/http"
@@ -17,6 +18,7 @@ import (
 
 	"golang.org/x/crypto/bcrypt"
 
+	"github.com/REVENTOR-EU/SiteStats/internal/alerter"
 	"github.com/REVENTOR-EU/SiteStats/internal/collect"
 	"github.com/REVENTOR-EU/SiteStats/internal/config"
 	"github.com/REVENTOR-EU/SiteStats/internal/engine"
@@ -31,21 +33,22 @@ var webFS, _ = fs.Sub(webRoot, "web")
 const sessionCookie = "ws_session"
 
 // Version is displayed in the UI footer.
-const Version = "1.0.0"
+const Version = "1.1.0"
 
 type Server struct {
 	cfg        *config.Config
 	configPath string
 	st         *store.Store
 	col        *engine.Collector
+	al         *alerter.Alerter
 	attM       struct {
 		sync.Mutex
 		m map[string][]time.Time // ip -> failed login times
 	}
 }
 
-func New(cfg *config.Config, st *store.Store, col *engine.Collector, configPath string) *Server {
-	s := &Server{cfg: cfg, configPath: configPath, st: st, col: col}
+func New(cfg *config.Config, st *store.Store, col *engine.Collector, al *alerter.Alerter, configPath string) *Server {
+	s := &Server{cfg: cfg, configPath: configPath, st: st, col: col, al: al}
 	s.attM.m = map[string][]time.Time{}
 	return s
 }
@@ -87,6 +90,9 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /api/overview", s.auth(s.handleOverview))
 	mux.HandleFunc("GET /api/site/{user}", s.auth(s.handleSite))
 	mux.HandleFunc("GET /api/events", s.auth(s.handleEvents))
+	mux.HandleFunc("GET /api/settings", s.auth(s.handleSettingsGet))
+	mux.HandleFunc("POST /api/settings", s.auth(s.handleSettingsSave))
+	mux.HandleFunc("POST /api/settings/test-email", s.auth(s.handleTestEmail))
 	// API responses are live data: never let the browser cache them
 	// (heuristic caching of GETs made the dashboard show stale stats).
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -537,4 +543,213 @@ func (s *Server) handleEvents(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, 200, ev)
+}
+
+// --- settings handlers -------------------------------------------------------
+
+var validAlertMetrics = map[string]bool{
+	"site.cpu": true, "site.mem": true, "site.mem_pct": true,
+	"site.req": true, "site.err5": true, "system.cpu": true,
+}
+
+var validAlertOps = map[string]bool{">": true, ">=": true, "<": true, "<=": true}
+
+type ruleJSON struct {
+	Name     string  `json:"name"`
+	Metric   string  `json:"metric"`
+	Site     string  `json:"site"`
+	Op       string  `json:"op"`
+	Value    float64 `json:"value"`
+	For      string  `json:"for"`
+	Cooldown string  `json:"cooldown"`
+	Severity string  `json:"severity"`
+}
+
+type settingsJSON struct {
+	Email struct {
+		Enabled     bool     `json:"enabled"`
+		SmtpHost    string   `json:"smtpHost"`
+		Username    string   `json:"username"`
+		HasPassword bool     `json:"hasPassword"`
+		From        string   `json:"from"`
+		To          []string `json:"to"`
+	} `json:"email"`
+	Webhook struct {
+		Enabled bool   `json:"enabled"`
+		URL     string `json:"url"`
+	} `json:"webhook"`
+	Rules []ruleJSON `json:"rules"`
+}
+
+func settingsFromConfig(ac config.AlertConfig) settingsJSON {
+	var sj settingsJSON
+	sj.Email.Enabled = ac.Email.Enabled
+	sj.Email.SmtpHost = ac.Email.Host
+	sj.Email.Username = ac.Email.Username
+	sj.Email.HasPassword = ac.Email.Password != ""
+	sj.Email.From = ac.Email.From
+	sj.Email.To = ac.Email.To
+	if sj.Email.To == nil {
+		sj.Email.To = []string{}
+	}
+	sj.Webhook.Enabled = ac.Webhook.Enabled
+	sj.Webhook.URL = ac.Webhook.URL
+	sj.Rules = []ruleJSON{}
+	for _, r := range ac.Rules {
+		sj.Rules = append(sj.Rules, ruleJSON{
+			Name: r.Name, Metric: r.Metric, Site: r.Site, Op: r.Op, Value: r.Value,
+			For: r.For.String(), Cooldown: r.Cooldown.String(), Severity: r.Severity,
+		})
+	}
+	return sj
+}
+
+func (s *Server) handleSettingsGet(w http.ResponseWriter, r *http.Request) {
+	writeJSON(w, 200, settingsFromConfig(s.cfg.Alerts))
+}
+
+// settingsToAlerts converts and validates a settingsJSON payload into an
+// AlertConfig; the SMTP password is taken from the live config when blank.
+func settingsToAlerts(sj settingsJSON, prev config.AlertConfig) (config.AlertConfig, error) {
+	ac := config.AlertConfig{
+		Email: config.EmailConfig{
+			Enabled:  sj.Email.Enabled,
+			Host:     strings.TrimSpace(sj.Email.SmtpHost),
+			Username: strings.TrimSpace(sj.Email.Username),
+			Password: prev.Email.Password,
+			From:     strings.TrimSpace(sj.Email.From),
+			To:       []string{},
+		},
+		Webhook: config.WebhookConfig{Enabled: sj.Webhook.Enabled, URL: strings.TrimSpace(sj.Webhook.URL)},
+	}
+	if ac.Email.Host != "" && !strings.Contains(ac.Email.Host, ":") {
+		ac.Email.Host += ":587"
+	}
+	for _, to := range sj.Email.To {
+		if to = strings.TrimSpace(to); to != "" {
+			ac.Email.To = append(ac.Email.To, to)
+		}
+	}
+	if ac.Email.Enabled && (len(ac.Email.To) == 0 || ac.Email.Host == "") {
+		return ac, fmt.Errorf("email alerts need an SMTP host and at least one recipient")
+	}
+	if ac.Webhook.Enabled && ac.Webhook.URL == "" {
+		return ac, fmt.Errorf("webhook alerts need a URL")
+	}
+	seen := map[string]bool{}
+	for _, rj := range sj.Rules {
+		name := strings.TrimSpace(rj.Name)
+		if name == "" {
+			return ac, fmt.Errorf("alert rule name must not be empty")
+		}
+		if seen[name] {
+			return ac, fmt.Errorf("duplicate alert rule name %q", name)
+		}
+		seen[name] = true
+		if !validAlertMetrics[rj.Metric] {
+			return ac, fmt.Errorf("rule %q: unknown metric %q", name, rj.Metric)
+		}
+		if !validAlertOps[rj.Op] {
+			return ac, fmt.Errorf("rule %q: invalid operator %q", name, rj.Op)
+		}
+		site := strings.TrimSpace(rj.Site)
+		if site == "" {
+			site = "*"
+		}
+		sev := rj.Severity
+		if sev != "warning" && sev != "critical" {
+			sev = "warning"
+		}
+		forD, err := config.ParseDurationOr(rj.For, 5*time.Minute)
+		if err != nil {
+			return ac, fmt.Errorf("rule %q: invalid for duration: %v", name, err)
+		}
+		cdD, err := config.ParseDurationOr(rj.Cooldown, time.Hour)
+		if err != nil {
+			return ac, fmt.Errorf("rule %q: invalid cooldown duration: %v", name, err)
+		}
+		ac.Rules = append(ac.Rules, config.AlertRule{
+			Name: name, Metric: rj.Metric, Site: site, Op: rj.Op, Value: rj.Value,
+			For: config.Duration{Duration: forD}, Cooldown: config.Duration{Duration: cdD}, Severity: sev,
+		})
+	}
+	return ac, nil
+}
+
+// saveAlerts persists the alert config to disk and applies it live: the
+// collector reads s.cfg.Alerts per notification, the alerter needs an
+// explicit rule swap.
+func (s *Server) saveAlerts(ac config.AlertConfig) error {
+	if s.configPath != "" {
+		disk, err := config.Load(s.configPath)
+		if err != nil {
+			// no config file (or unreadable): fall back to the live config
+			copy := *s.cfg
+			disk = &copy
+		}
+		disk.Alerts = ac
+		if err := config.Save(s.configPath, disk); err != nil {
+			return err
+		}
+	}
+	s.cfg.Alerts = ac
+	s.al.UpdateConfig(ac)
+	return nil
+}
+
+func (s *Server) handleSettingsSave(w http.ResponseWriter, r *http.Request) {
+	var sj settingsJSON
+	if err := json.NewDecoder(r.Body).Decode(&sj); err != nil {
+		writeErr(w, http.StatusBadRequest, "bad request")
+		return
+	}
+	ac, err := settingsToAlerts(sj, s.cfg.Alerts)
+	if err != nil {
+		writeErr(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	if err := s.saveAlerts(ac); err != nil {
+		writeErr(w, 500, "could not persist settings: "+err.Error())
+		return
+	}
+	s.st.InsertEvent(time.Now().Unix(), "settings", "_system", "alert-settings-updated",
+		fmt.Sprintf("alert settings updated (%d rules, email %s, webhook %s)",
+			len(ac.Rules), onOff(ac.Email.Enabled), onOff(ac.Webhook.Enabled)))
+	log.Printf("alert settings updated via web interface")
+	writeJSON(w, 200, settingsFromConfig(ac))
+}
+
+func onOff(b bool) string {
+	if b {
+		return "on"
+	}
+	return "off"
+}
+
+// handleTestEmail sends a probe mail using the submitted SMTP fields; an
+// empty password means "use the saved one".
+func (s *Server) handleTestEmail(w http.ResponseWriter, r *http.Request) {
+	var sj settingsJSON
+	if err := json.NewDecoder(r.Body).Decode(&sj); err != nil {
+		writeErr(w, http.StatusBadRequest, "bad request")
+		return
+	}
+	ac, err := settingsToAlerts(sj, s.cfg.Alerts)
+	if err != nil {
+		writeErr(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	if ac.Email.Host == "" || len(ac.Email.To) == 0 {
+		writeErr(w, http.StatusBadRequest, "SMTP host and at least one recipient are required")
+		return
+	}
+	ev := alerter.Event{
+		Ts: time.Now().Unix(), Rule: "test", Site: "_system", Severity: "info",
+		Message: "This is a test message from website-stats. If you read this, mail alerts are set up correctly.",
+	}
+	if err := alerter.NotifyEmail(ac.Email, ev); err != nil {
+		writeErr(w, http.StatusBadGateway, "SMTP test failed: "+err.Error())
+		return
+	}
+	writeJSON(w, 200, map[string]bool{"ok": true})
 }

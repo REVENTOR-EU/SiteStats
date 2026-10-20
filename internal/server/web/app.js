@@ -170,6 +170,144 @@ $("pwForm").addEventListener("submit", async (e) => {
   $("pwModal").classList.add("hidden");
 });
 
+/* ---------- settings menu & alerts ---------- */
+
+$("settingsBtn").addEventListener("click", (e) => {
+  e.stopPropagation();
+  $("settingsDropdown").classList.toggle("hidden");
+});
+document.addEventListener("click", (e) => {
+  if (!e.target.closest(".profile-menu")) $("settingsDropdown").classList.add("hidden");
+});
+
+const METRICS = [
+  ["site.cpu", "Site CPU %"],
+  ["site.mem", "Site memory (MB)"],
+  ["site.mem_pct", "Site memory (% of total)"],
+  ["site.req", "Site requests/min"],
+  ["site.err5", "Site 5xx/min"],
+  ["system.cpu", "System CPU %"],
+];
+
+let draftRules = [];
+
+function ruleRow(r) {
+  const tr = document.createElement("tr");
+  tr.innerHTML = `
+    <td><input type="text" class="r-name" value="${esc(r.name || "")}" placeholder="my-rule"></td>
+    <td><select class="r-metric">${METRICS.map(([v, l]) => `<option value="${v}"${v === r.metric ? " selected" : ""}>${l}</option>`).join("")}</select></td>
+    <td><input type="text" class="r-site" value="${esc(r.site || "*")}" title="Site user, * = all sites"></td>
+    <td><select class="r-op">${[">", ">=", "<", "<="].map((o) => `<option${o === (r.op || ">") ? " selected" : ""}>${o}</option>`).join("")}</select></td>
+    <td><input type="number" class="r-value" value="${r.value ?? 0}" step="any"></td>
+    <td><input type="text" class="r-for" value="${esc(r.for || "5m")}" title="Breach duration before firing, e.g. 5m"></td>
+    <td><input type="text" class="r-cooldown" value="${esc(r.cooldown || "1h")}" title="Minimum time between notifications"></td>
+    <td><select class="r-sev"><option value="warning"${r.severity !== "critical" ? " selected" : ""}>warning</option><option value="critical"${r.severity === "critical" ? " selected" : ""}>critical</option></select></td>
+    <td><button type="button" class="r-del" title="Delete rule">✕</button></td>`;
+  tr.querySelector(".r-del").addEventListener("click", () => tr.remove());
+  return tr;
+}
+
+function showSettingsModal() {
+  $("profileDropdown").classList.add("hidden");
+  $("settingsDropdown").classList.add("hidden");
+  $("settingsError").classList.add("hidden");
+  $("testMailStatus").textContent = "";
+  $("settingsModal").classList.remove("hidden");
+  api("/api/settings").then((s) => {
+    $("setEmailEnabled").checked = s.email.enabled;
+    $("setSmtpHost").value = s.email.smtpHost || "";
+    $("setSmtpUser").value = s.email.username || "";
+    $("setSmtpPass").value = "";
+    $("setSmtpPass").placeholder = s.email.hasPassword ? "(unchanged)" : "";
+    $("setEmailFrom").value = s.email.from || "";
+    $("setEmailTo").value = (s.email.to || []).join(", ");
+    $("setWebhookEnabled").checked = s.webhook.enabled;
+    $("setWebhookUrl").value = s.webhook.url || "";
+    const tbody = $("rulesTable").querySelector("tbody");
+    tbody.innerHTML = "";
+    draftRules = s.rules || [];
+    for (const r of draftRules) tbody.appendChild(ruleRow(r));
+    if (!draftRules.length) tbody.appendChild(ruleRow({}));
+  }).catch((e) => settingsErr("could not load settings: " + e.message));
+}
+
+function settingsErr(msg) {
+  const el = $("settingsError");
+  el.textContent = msg;
+  el.classList.remove("hidden");
+}
+
+$("alertSettingsBtn").addEventListener("click", showSettingsModal);
+$("settingsModal").addEventListener("click", (e) => {
+  if (e.target === e.currentTarget) $("settingsModal").classList.add("hidden");
+});
+$("addRuleBtn").addEventListener("click", () => {
+  $("rulesTable").querySelector("tbody").appendChild(ruleRow({}));
+});
+
+function collectRules() {
+  return [...$("rulesTable").querySelectorAll("tbody tr")].map((tr) => ({
+    name: tr.querySelector(".r-name").value,
+    metric: tr.querySelector(".r-metric").value,
+    site: tr.querySelector(".r-site").value,
+    op: tr.querySelector(".r-op").value,
+    value: parseFloat(tr.querySelector(".r-value").value) || 0,
+    for: tr.querySelector(".r-for").value,
+    cooldown: tr.querySelector(".r-cooldown").value,
+    severity: tr.querySelector(".r-sev").value,
+  }));
+}
+
+function settingsPayload() {
+  return {
+    email: {
+      enabled: $("setEmailEnabled").checked,
+      smtpHost: $("setSmtpHost").value,
+      username: $("setSmtpUser").value,
+      password: $("setSmtpPass").value,
+      from: $("setEmailFrom").value,
+      to: $("setEmailTo").value.split(",").map((s) => s.trim()).filter(Boolean),
+    },
+    webhook: {
+      enabled: $("setWebhookEnabled").checked,
+      url: $("setWebhookUrl").value,
+    },
+    rules: collectRules(),
+  };
+}
+
+$("settingsForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const res = await fetch("/api/settings", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(settingsPayload()),
+  });
+  if (!res.ok) {
+    const j = await res.json().catch(() => ({}));
+    return settingsErr(j.error || "saving failed");
+  }
+  $("settingsModal").classList.add("hidden");
+});
+
+$("testMailBtn").addEventListener("click", async () => {
+  const st = $("testMailStatus");
+  st.textContent = "sending…";
+  const body = settingsPayload();
+  body.rules = []; // not needed for the mail probe
+  const res = await fetch("/api/settings/test-email", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    const j = await res.json().catch(() => ({}));
+    st.textContent = j.error || "test failed";
+    return;
+  }
+  st.textContent = "test email sent ✓";
+});
+
 /* ---------- charts ---------- */
 
 const chartDefaults = {

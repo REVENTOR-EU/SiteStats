@@ -4,6 +4,7 @@ package alerter
 
 import (
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/REVENTOR-EU/SiteStats/internal/collect"
@@ -26,6 +27,7 @@ type breachState struct {
 
 // Alerter holds rule state (breach tracking) across evaluations.
 type Alerter struct {
+	mu     sync.Mutex
 	cfg    config.AlertConfig
 	breach map[string]*breachState // ruleName|site -> state
 	nowFn  func() int64
@@ -36,6 +38,18 @@ func New(cfg config.AlertConfig) *Alerter {
 		cfg.Rules = config.DefaultAlertRules()
 	}
 	return &Alerter{cfg: cfg, breach: map[string]*breachState{}, nowFn: time.Now().Unix}
+}
+
+// UpdateConfig swaps the rule set at runtime and wipes breach tracking so
+// stale rule|site states don't survive a rule edit.
+func (a *Alerter) UpdateConfig(cfg config.AlertConfig) {
+	if len(cfg.Rules) == 0 {
+		cfg.Rules = config.DefaultAlertRules()
+	}
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	a.cfg = cfg
+	a.breach = map[string]*breachState{}
 }
 
 // metricValue extracts the rule metric from a minute row.
@@ -78,6 +92,8 @@ func (a *Alerter) compare(op string, v, threshold float64) bool {
 // plus the "_system" pseudo-row. Returns events to notify.
 func (a *Alerter) Evaluate(rows []collect.MinuteRow, memTotalMB float64) []Event {
 	now := a.nowFn()
+	a.mu.Lock()
+	defer a.mu.Unlock()
 	var fired []Event
 	seen := map[string]bool{}
 

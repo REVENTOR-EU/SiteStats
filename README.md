@@ -29,7 +29,9 @@ to your sites — just read what's already there.
 - **PHP-FPM pool status** — active/idle workers, listen queue and request rate per site
 - **Per-site disk usage** — hourly `du` of every site's home directory
 - **Alerts** — threshold rules (per-site CPU, 5xx rate, system CPU, …) with email and
-  webhook notifications, evaluated per minute with cooldowns
+  webhook notifications, evaluated per minute with cooldowns — configurable in the UI
+  (gear menu → *Alerts & email*): SMTP settings, webhook URL and rules are editable at
+  runtime, with a built-in SMTP test-email button
 - **Live view + history** — 1-minute resolution kept for 30 days (configurable),
   in-memory 10-second granularity for the last hour
 - **Beszel-like simplicity** — single ~12 MB Go binary, ~40 MB RAM, SQLite storage,

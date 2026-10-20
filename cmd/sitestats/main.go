@@ -97,7 +97,7 @@ func runServe(path string, demo bool) {
 
 	srv := &http.Server{
 		Addr:              cfg.Listen,
-		Handler:           server.New(cfg, st, col, path).Handler(),
+		Handler:           server.New(cfg, st, col, al, path).Handler(),
 		ReadHeaderTimeout: 10 * time.Second,
 	}
 	log.Printf("website-stats %s listening on %s (config %s)", server.Version, cfg.Listen, path)

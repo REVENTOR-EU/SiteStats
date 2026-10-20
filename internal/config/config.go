@@ -4,6 +4,7 @@ package config
 import (
 	"fmt"
 	"os"
+	"strings"
 	"time"
 
 	"gopkg.in/yaml.v3"
@@ -23,6 +24,16 @@ func (d *Duration) UnmarshalYAML(node *yaml.Node) error {
 	}
 	d.Duration = v
 	return nil
+}
+
+// ParseDurationOr parses a duration string ("10s", "5m") or returns def when
+// the string is empty; non-empty invalid strings yield an error.
+func ParseDurationOr(s string, def time.Duration) (time.Duration, error) {
+	s = strings.TrimSpace(s)
+	if s == "" {
+		return def, nil
+	}
+	return time.ParseDuration(s)
 }
 
 func (d Duration) MarshalYAML() (interface{}, error) { return d.String(), nil }
