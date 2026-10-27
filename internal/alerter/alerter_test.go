@@ -78,6 +78,26 @@ func TestDefaultClockAdvances(t *testing.T) {
 	}
 }
 
+// "*" rules cover real websites only; _sys needs an explicit rule
+func TestWildcardSkipsSystemServices(t *testing.T) {
+	now := int64(1000)
+	a := New(config.AlertConfig{Rules: []config.AlertRule{rule("mem", "site.mem", 1000)}})
+	a.nowFn = func() int64 { return now }
+	a.Evaluate([]collect.MinuteRow{{Site: "_sys", MemMB: 3000}}, 8000)
+	now += 61
+	if ev := a.Evaluate([]collect.MinuteRow{{Site: "_sys", MemMB: 3000}}, 8000); len(ev) != 0 {
+		t.Fatalf("wildcard rule must not fire for _sys, got %+v", ev)
+	}
+	a.UpdateConfig(config.AlertConfig{Rules: []config.AlertRule{rule("mem", "site.mem", 1000),
+		{Name: "sys-mem", Metric: "site.mem", Site: "_sys", Op: ">", Value: 1000,
+			For: config.Duration{Duration: time.Minute}, Cooldown: config.Duration{Duration: time.Hour}, Severity: "critical"}}})
+	a.Evaluate([]collect.MinuteRow{{Site: "_sys", MemMB: 3000}}, 8000)
+	now += 61
+	if ev := a.Evaluate([]collect.MinuteRow{{Site: "_sys", MemMB: 3000}}, 8000); len(ev) != 1 {
+		t.Fatalf("explicit _sys rule should fire, got %+v", ev)
+	}
+}
+
 func TestUpdateConfigSwapsRulesAndClearsBreach(t *testing.T) {
 	now := int64(1000)
 	a := New(config.AlertConfig{Rules: []config.AlertRule{rule("r", "site.cpu", 40)}})

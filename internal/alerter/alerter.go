@@ -126,6 +126,11 @@ func (a *Alerter) Evaluate(rows []collect.MinuteRow, memTotalMB float64) []Event
 			if !isSystem && row.Site == "_system" {
 				continue
 			}
+			// "*" means all real websites; the _sys bucket is alertable
+			// only through a rule that names it explicitly
+			if rule.Site == "*" && !isSystem && strings.HasPrefix(row.Site, "_sys") {
+				continue
+			}
 			key := rule.Name + "|" + row.Site
 			v, ok := metricValue(rule.Metric, &row, memTotalMB)
 			if !ok {
