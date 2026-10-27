@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>SiteStats</title>
-<link rel="stylesheet" href="/static/app.css?v=24">
+<link rel="stylesheet" href="/static/app.css?v=25">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%93%88%3C/text%3E%3C/svg%3E">
 </head>
 <body>
@@ -63,6 +63,7 @@
     <h1>Alert settings</h1>
     <p>Threshold alarms with email and webhook delivery. Saved to the server config and applied immediately.</p>
 
+    <div class="settings-sections">
     <fieldset class="settings-section">
       <legend><label><input type="checkbox" id="setEmailEnabled"> Email alerts (SMTP)</label></legend>
       <div class="settings-grid">
@@ -86,12 +87,13 @@
       <table class="rules-table" id="rulesTable">
         <thead><tr>
           <th>Name</th><th>Metric</th><th>Site</th><th></th><th>Value</th>
-          <th>For</th><th>Cooldown</th><th>Severity</th><th></th>
+          <th>Fires after</th><th>Re-notify after</th><th>Severity</th><th></th>
         </tr></thead>
         <tbody></tbody>
       </table>
       <button type="button" id="addRuleBtn" class="secondary-btn">+ Add rule</button>
     </fieldset>
+    </div>
 
     <div class="settings-actions">
       <button type="submit">Save settings</button>
