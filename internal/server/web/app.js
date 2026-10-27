@@ -424,6 +424,7 @@ function stackedChart(el, entries) {
     scales: { x: { time: true }, y: { auto: false, range: () => [0, softMax] } },
     series,
     hooks: {
+      draw: [refLinesHook()],
       setCursor: [(u) => {
         const { left, top } = u.cursor;
         if (left == null || left < 0 || top == null || top < 0) {
@@ -534,6 +535,26 @@ function drawHeatmap(el, entries) {
   el.appendChild(grid);
 }
 
+// dashed horizontal guides at 25/50/75% of the y range, drawn onto the
+// main canvas after each render
+function refLinesHook(fracs = [0.25, 0.5, 0.75]) {
+  return (u) => {
+    const ctx = u.ctx;
+    ctx.save();
+    ctx.strokeStyle = "rgba(255,255,255,0.14)";
+    ctx.setLineDash([4, 4]);
+    ctx.lineWidth = 1;
+    for (const f of fracs) {
+      const y = Math.round(u.valToPos(u.scales.y.max * f, "y", true)) + 0.5;
+      ctx.beginPath();
+      ctx.moveTo(u.bbox.left, y);
+      ctx.lineTo(u.bbox.left + u.bbox.width, y);
+      ctx.stroke();
+    }
+    ctx.restore();
+  };
+}
+
 function lineChart(el, defs, height = 190, yFmt = (v) => v, yMax = null) {
   el.innerHTML = "";
   const aligned = alignSeries(defs.map((d) => d.series));
@@ -549,13 +570,18 @@ function lineChart(el, defs, height = 190, yFmt = (v) => v, yMax = null) {
     });
   }
   const yScale = { x: { time: true } };
-  if (yMax != null) yScale.y = { auto: false, range: () => [0, yMax] };
+  const hooks = {};
+  if (yMax != null) {
+    yScale.y = { auto: false, range: () => [0, yMax] };
+    hooks.draw = [refLinesHook()];
+  }
   const opts = {
     width: chartWidth(el),
     height,
     ms: true,
     scales: yScale,
     series,
+    hooks,
   };
   const up = new uPlot(opts, [xs, ...aligned.cols], el);
   settleSize(up, el, height);
@@ -592,9 +618,14 @@ function renderRanges(el, current, cb) {
   }
 }
 
+function sparklineHeader() {
+  const h = $("sparkHead");
+  if (h) h.textContent = "Last " + state.range;
+}
+
 function sparkline(series, color) {
   if (!series || series.length < 2) return '<svg width="130" height="30"></svg>';
-  const tail = series.slice(-288);
+  const tail = series; // already bucketed to the selected range
   const w = 130, h = 30;
   // fixed 0-100% scale: tiny sites honestly render as near-flat lines
   const maxV = 100;
@@ -623,6 +654,7 @@ function renderViewToggle() {
 function renderOverview(d) {
   state.lastOverview = d;
   renderChips(d.now);
+  sparklineHeader();
   renderRanges($("ranges"), state.range, (r) => { state.range = r; route(); });
   renderViewToggle();
 
