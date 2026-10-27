@@ -32,7 +32,10 @@ function colorFor(key) {
       if (t < 2 / 3) return p + (q - p) * (2 / 3 - t) * 6;
       return p;
     };
-    const l = 0.55, sat = 0.62;
+    // golden-angle hue steps plus rotating lightness/saturation keep
+    // successive colors far apart even with dozens of sites
+    const l = [0.55, 0.40, 0.68, 0.48, 0.62, 0.35][i % 6];
+    const sat = i % 2 ? 0.70 : 0.55;
     const q = l < 0.5 ? l * (1 + sat) : l + sat - l * sat;
     const pp = 2 * l - q;
     const r = Math.round(hue2rgb(pp, q, hue + 1 / 3) * 255);
@@ -348,26 +351,13 @@ function buildBands(entries) {
   entries = [...entries].sort((a, b) => totalOf(b) - totalOf(a));
   const aligned = alignSeries(entries.map((e) => e.series));
   const xs = aligned.xs.map((t) => t * 1000);
-  const TOP = 8;
+  // every site gets its own band, largest at the bottom
   const idxOf = new Map(aligned.xs.map((t, i) => [t, i]));
-  const bands = entries.slice(0, TOP).map((e) => {
+  const bands = entries.map((e) => {
     const row = new Array(aligned.xs.length).fill(null);
     for (const [t, v] of e.series) row[idxOf.get(t)] = v;
     return { name: e.name, color: e.color, fill: e.fill, row };
   });
-  if (entries.length > TOP) {
-    const rest = entries.slice(TOP);
-    const row = new Array(aligned.xs.length).fill(0);
-    let any = false;
-    for (const e of rest) {
-      for (const [t, v] of e.series) {
-        const i = idxOf.get(t);
-        row[i] += v || 0;
-        any = true;
-      }
-    }
-    bands.push({ name: "Others (" + rest.length + ")", color: "#5a6472", fill: "rgba(90,100,114,0.85)", row: any ? row : row.map(() => null) });
-  }
   return { xs, bands };
 }
 
