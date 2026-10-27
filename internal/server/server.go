@@ -286,6 +286,8 @@ func (s *Server) handlePasswordChange(w http.ResponseWriter, r *http.Request) {
 
 func parseRange(r *http.Request) int64 {
 	switch r.URL.Query().Get("range") {
+	case "15m":
+		return 15 * 60
 	case "1h":
 		return 3600
 	case "6h":

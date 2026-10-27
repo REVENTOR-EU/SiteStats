@@ -581,7 +581,7 @@ function renderChips(now) {
 
 function renderRanges(el, current, cb) {
   el.innerHTML = "";
-  for (const r of ["1h", "6h", "24h", "7d", "30d"]) {
+  for (const r of ["15m", "1h", "6h", "24h", "7d", "30d"]) {
     const b = document.createElement("button");
     b.textContent = r;
     if (r === current) b.classList.add("active");
