@@ -534,7 +534,7 @@ function drawHeatmap(el, entries) {
   el.appendChild(grid);
 }
 
-function lineChart(el, defs, height = 190, yFmt = (v) => v) {
+function lineChart(el, defs, height = 190, yFmt = (v) => v, yMax = null) {
   el.innerHTML = "";
   const aligned = alignSeries(defs.map((d) => d.series));
   const xs = aligned.xs.map((t) => t * 1000);
@@ -548,11 +548,13 @@ function lineChart(el, defs, height = 190, yFmt = (v) => v) {
       spanGaps: true,
     });
   }
+  const yScale = { x: { time: true } };
+  if (yMax != null) yScale.y = { auto: false, range: () => [0, yMax] };
   const opts = {
     width: chartWidth(el),
     height,
     ms: true,
-    scales: { x: { time: true } },
+    scales: yScale,
     series,
   };
   const up = new uPlot(opts, [xs, ...aligned.cols], el);
@@ -594,7 +596,8 @@ function sparkline(series, color) {
   if (!series || series.length < 2) return '<svg width="130" height="30"></svg>';
   const tail = series.slice(-288);
   const w = 130, h = 30;
-  const maxV = Math.max(1, ...tail.map((p) => p[1]));
+  // fixed 0-100% scale: tiny sites honestly render as near-flat lines
+  const maxV = 100;
   const t0 = tail[0][0], t1 = tail[tail.length - 1][0];
   const pts = tail
     .map(([t, v]) => `${((t - t0) / Math.max(1, t1 - t0)) * w},${h - (v / maxV) * (h - 4) - 2}`)
@@ -698,7 +701,7 @@ function renderSite(d) {
 
   const has = (k) => (d.series[k] && d.series[k].length ? d.series[k] : null);
   const single = (k, color) => (has(k) ? [{ name: k, color, series: d.series[k] }] : null);
-  if (has("cpu")) lineChart($("cpuChart"), single("cpu", "#4c8dff"), 190, (v) => v.toFixed(0) + "%");
+  if (has("cpu")) lineChart($("cpuChart"), single("cpu", "#4c8dff"), 190, (v) => v.toFixed(0) + "%", 100);
   if (has("mem")) lineChart($("memChart"), single("mem", "#3fb27f"), 190, (v) => fmtBytes(v * 1048576));
   if (has("req")) lineChart($("reqChart"), single("req", "#b585f5"), 190, (v) => fmtInt(v));
   if (has("bytes")) lineChart($("bytesChart"), single("bytes", "#d4a72c"), 190, (v) => fmtBytes(v) + "/m");
