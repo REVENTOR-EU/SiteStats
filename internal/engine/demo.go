@@ -140,7 +140,8 @@ func (c *Collector) demoWriteMinute(minuteTs int64, snap collect.Snapshot) {
 		}
 		rows = append(rows, row)
 	}
-	sys := collect.MinuteRow{Ts: minuteTs, Site: "_system", CPU: snap.System.CPU, MemMB: snap.System.MemUsedMB}
+	sys := collect.MinuteRow{Ts: minuteTs, Site: "_system", CPU: snap.System.CPU, MemMB: snap.System.MemUsedMB,
+		Load1: snap.System.Load1, Load5: snap.System.Load5, Load15: snap.System.Load15}
 	rows = append(rows, sys)
 
 	var memTotalMB float64

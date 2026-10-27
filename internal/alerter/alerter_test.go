@@ -67,6 +67,17 @@ func TestLoadMetricFiresOnSystemRow(t *testing.T) {
 	}
 }
 
+// Regression: New() once froze its clock via a time.Now().Unix method value,
+// so breach timers never elapsed and no alert could ever fire.
+func TestDefaultClockAdvances(t *testing.T) {
+	a := New(config.AlertConfig{})
+	t1 := a.nowFn()
+	time.Sleep(1100 * time.Millisecond)
+	if a.nowFn() <= t1 {
+		t.Fatalf("default nowFn must return a moving clock")
+	}
+}
+
 func TestUpdateConfigSwapsRulesAndClearsBreach(t *testing.T) {
 	now := int64(1000)
 	a := New(config.AlertConfig{Rules: []config.AlertRule{rule("r", "site.cpu", 40)}})

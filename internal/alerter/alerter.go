@@ -38,7 +38,9 @@ func New(cfg config.AlertConfig) *Alerter {
 	if len(cfg.Rules) == 0 {
 		cfg.Rules = config.DefaultAlertRules()
 	}
-	return &Alerter{cfg: cfg, breach: map[string]*breachState{}, nowFn: time.Now().Unix}
+	// note: a method value like time.Now().Unix would freeze the clock at
+	// construction time — the closure re-reads the clock on every call
+	return &Alerter{cfg: cfg, breach: map[string]*breachState{}, nowFn: func() int64 { return time.Now().Unix() }}
 }
 
 // UpdateConfig swaps the rule set at runtime and wipes breach tracking so
