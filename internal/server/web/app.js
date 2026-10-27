@@ -427,9 +427,10 @@ function stackedChart(el, entries) {
         const yv = u.posToVal(top, "y");
         // data[1..n] are the cumulative rows, pushed top band first, so
         // series k corresponds to band n-k; the band under yv is the one
-        // whose cumulative line is the lowest one still >= yv
+        // whose region [cum of band b-1 .. cum of band b] contains yv —
+        // i.e. the LOWEST cumulative line still >= yv
         let k = 0;
-        for (let s = 1; s <= n; s++) {
+        for (let s = n; s >= 1; s--) {
           const cum = data[s][idx];
           if (cum != null && cum >= yv) { k = s; break; }
         }
@@ -438,7 +439,7 @@ function stackedChart(el, entries) {
         const val = (data[k][idx] ?? 0) - lower;
         const band = built.bands[n - k];
         tip.textContent = `${band.name}: ${val.toFixed(1)}%`;
-        tip.style.left = Math.min(left + 14, u.width - 130) + "px";
+        tip.style.left = Math.min(left + 14, u.width - 140) + "px";
         tip.style.top = Math.max(top - 12, 0) + "px";
         tip.style.opacity = 1;
       }],
