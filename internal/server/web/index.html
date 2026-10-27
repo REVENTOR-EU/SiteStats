@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>SiteStats</title>
-<link rel="stylesheet" href="/static/app.css?v=25">
+<link rel="stylesheet" href="/static/app.css?v=26">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%93%88%3C/text%3E%3C/svg%3E">
 </head>
 <body>
@@ -26,14 +26,9 @@
   </div>
   <div class="chips" id="chips"></div>
   <div class="topbar-actions">
-    <div class="profile-menu">
-      <button id="settingsBtn" class="profile-btn" title="Settings">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
-      </button>
-      <div id="settingsDropdown" class="dropdown hidden">
-        <button id="alertSettingsBtn">Alerts &amp; email…</button>
-      </div>
-    </div>
+    <button id="settingsBtn" class="profile-btn" title="Settings">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+    </button>
     <div class="profile-menu">
     <button id="profileBtn" class="profile-btn" title="Account">
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
@@ -58,51 +53,53 @@
   </form>
 </div>
 
-<div id="settingsModal" class="login-overlay hidden">
-  <form class="login-card settings-card" id="settingsForm">
-    <h1>Alert settings</h1>
-    <p>Threshold alarms with email and webhook delivery. Saved to the server config and applied immediately.</p>
-
-    <div class="settings-sections">
-    <fieldset class="settings-section">
-      <legend><label><input type="checkbox" id="setEmailEnabled"> Email alerts (SMTP)</label></legend>
-      <div class="settings-grid">
-        <label>SMTP host:port<input type="text" id="setSmtpHost" placeholder="mail.example.com:587" autocomplete="off"></label>
-        <label>Username<input type="text" id="setSmtpUser" autocomplete="off"></label>
-        <label>Password<input type="password" id="setSmtpPass" placeholder="(unchanged)" autocomplete="new-password"></label>
-        <label>From address<input type="text" id="setEmailFrom" placeholder="alerts@example.com" autocomplete="off"></label>
-        <label>To (comma separated)<input type="text" id="setEmailTo" placeholder="you@example.com" autocomplete="off"></label>
-      </div>
-      <button type="button" id="testMailBtn" class="secondary-btn">Send test email</button>
-      <span id="testMailStatus" class="hint"></span>
-    </fieldset>
-
-    <fieldset class="settings-section">
-      <legend><label><input type="checkbox" id="setWebhookEnabled"> Webhook alerts</label></legend>
-      <label class="wide">URL<input type="text" id="setWebhookUrl" placeholder="https://example.com/hook" autocomplete="off"></label>
-    </fieldset>
-
-    <fieldset class="settings-section">
-      <legend>Alert rules</legend>
-      <table class="rules-table" id="rulesTable">
-        <thead><tr>
-          <th>Name</th><th>Metric</th><th>Site</th><th></th><th>Value</th>
-          <th>Fires after</th><th>Re-notify after</th><th>Severity</th><th></th>
-        </tr></thead>
-        <tbody></tbody>
-      </table>
-      <button type="button" id="addRuleBtn" class="secondary-btn">+ Add rule</button>
-    </fieldset>
-    </div>
-
-    <div class="settings-actions">
-      <button type="submit">Save settings</button>
-      <div id="settingsError" class="login-error hidden"></div>
-    </div>
-  </form>
-</div>
-
 <main id="app">
+  <section id="settingsview" class="hidden">
+    <div class="row spread">
+      <h2><a href="#" id="settingsBackLink">&larr; Overview</a> / Settings</h2>
+    </div>
+    <form class="card settings-form" id="settingsForm">
+      <div class="settings-sections">
+      <fieldset class="settings-section">
+        <legend><label><input type="checkbox" id="setEmailEnabled"> Email alerts (SMTP)</label></legend>
+        <div class="settings-grid">
+          <label>SMTP host:port<input type="text" id="setSmtpHost" placeholder="mail.example.com:587" autocomplete="off"></label>
+          <label>Username<input type="text" id="setSmtpUser" autocomplete="off"></label>
+          <label>Password<input type="password" id="setSmtpPass" placeholder="(unchanged)" autocomplete="new-password"></label>
+          <label>From address<input type="text" id="setEmailFrom" placeholder="alerts@example.com" autocomplete="off"></label>
+          <label>To (comma separated)<input type="text" id="setEmailTo" placeholder="you@example.com" autocomplete="off"></label>
+        </div>
+        <button type="button" id="testMailBtn" class="secondary-btn">Send test email</button>
+        <span id="testMailStatus" class="hint"></span>
+      </fieldset>
+
+      <fieldset class="settings-section">
+        <legend><label><input type="checkbox" id="setWebhookEnabled"> Webhook alerts</label></legend>
+        <label class="wide">URL<input type="text" id="setWebhookUrl" placeholder="https://example.com/hook" autocomplete="off"></label>
+        <p class="hint">Receives a JSON POST for every alert: ts, rule, site, severity, message.</p>
+      </fieldset>
+
+      <fieldset class="settings-section">
+        <legend>Alert rules</legend>
+        <table class="rules-table" id="rulesTable">
+          <thead><tr>
+            <th>Name</th><th>Metric</th><th>Site</th><th></th><th>Value</th>
+            <th>Fires after</th><th>Re-notify after</th><th>Severity</th><th></th>
+          </tr></thead>
+          <tbody></tbody>
+        </table>
+        <button type="button" id="addRuleBtn" class="secondary-btn">+ Add rule</button>
+      </fieldset>
+      </div>
+
+      <div class="settings-actions">
+        <button type="submit">Save settings</button>
+        <span id="settingsSaved" class="hint hidden">Saved ✓</span>
+        <div id="settingsError" class="login-error hidden"></div>
+      </div>
+    </form>
+  </section>
+
   <section id="overview">
     <div class="row spread">
       <h2>CPU by site <span class="hint">% of total server capacity, per site</span></h2>
@@ -165,6 +162,6 @@
 <footer>SiteStats <span id="ver"></span> · times in your local timezone</footer>
 
 <script src="/static/uplot.iife.min.js?v=13"></script>
-<script src="/static/app.js?v=26"></script>
+<script src="/static/app.js?v=27"></script>
 </body>
 </html>

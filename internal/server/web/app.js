@@ -170,14 +170,38 @@ $("pwForm").addEventListener("submit", async (e) => {
   $("pwModal").classList.add("hidden");
 });
 
-/* ---------- settings menu & alerts ---------- */
+/* ---------- settings page ---------- */
 
-$("settingsBtn").addEventListener("click", (e) => {
-  e.stopPropagation();
-  $("settingsDropdown").classList.toggle("hidden");
-});
-document.addEventListener("click", (e) => {
-  if (!e.target.closest(".profile-menu")) $("settingsDropdown").classList.add("hidden");
+function settingsErr(msg) {
+  const el = $("settingsError");
+  el.textContent = msg;
+  el.classList.remove("hidden");
+  $("settingsSaved").classList.add("hidden");
+}
+
+function loadSettings() {
+  api("/api/settings").then((s) => {
+    $("setEmailEnabled").checked = s.email.enabled;
+    $("setSmtpHost").value = s.email.smtpHost || "";
+    $("setSmtpUser").value = s.email.username || "";
+    $("setSmtpPass").value = "";
+    $("setSmtpPass").placeholder = s.email.hasPassword ? "(unchanged)" : "";
+    $("setEmailFrom").value = s.email.from || "";
+    $("setEmailTo").value = (s.email.to || []).join(", ");
+    $("setWebhookEnabled").checked = s.webhook.enabled;
+    $("setWebhookUrl").value = s.webhook.url || "";
+    const tbody = $("rulesTable").querySelector("tbody");
+    tbody.innerHTML = "";
+    draftRules = s.rules || [];
+    for (const r of draftRules) tbody.appendChild(ruleRow(r));
+    if (!draftRules.length) tbody.appendChild(ruleRow({}));
+      }).catch((e) => settingsErr("could not load settings: " + e.message));
+}
+
+$("settingsBtn").addEventListener("click", () => { location.hash = "#/settings"; });
+$("settingsBackLink").addEventListener("click", (e) => { e.preventDefault(); location.hash = ""; });
+$("addRuleBtn").addEventListener("click", () => {
+  $("rulesTable").querySelector("tbody").appendChild(ruleRow({}));
 });
 
 const METRICS = [
@@ -210,43 +234,11 @@ function ruleRow(r) {
   return tr;
 }
 
-function showSettingsModal() {
-  $("profileDropdown").classList.add("hidden");
-  $("settingsDropdown").classList.add("hidden");
-  $("settingsError").classList.add("hidden");
-  $("testMailStatus").textContent = "";
-  $("settingsModal").classList.remove("hidden");
-  api("/api/settings").then((s) => {
-    $("setEmailEnabled").checked = s.email.enabled;
-    $("setSmtpHost").value = s.email.smtpHost || "";
-    $("setSmtpUser").value = s.email.username || "";
-    $("setSmtpPass").value = "";
-    $("setSmtpPass").placeholder = s.email.hasPassword ? "(unchanged)" : "";
-    $("setEmailFrom").value = s.email.from || "";
-    $("setEmailTo").value = (s.email.to || []).join(", ");
-    $("setWebhookEnabled").checked = s.webhook.enabled;
-    $("setWebhookUrl").value = s.webhook.url || "";
-    const tbody = $("rulesTable").querySelector("tbody");
-    tbody.innerHTML = "";
-    draftRules = s.rules || [];
-    for (const r of draftRules) tbody.appendChild(ruleRow(r));
-    if (!draftRules.length) tbody.appendChild(ruleRow({}));
-  }).catch((e) => settingsErr("could not load settings: " + e.message));
-}
-
 function settingsErr(msg) {
   const el = $("settingsError");
   el.textContent = msg;
   el.classList.remove("hidden");
 }
-
-$("alertSettingsBtn").addEventListener("click", showSettingsModal);
-$("settingsModal").addEventListener("click", (e) => {
-  if (e.target === e.currentTarget) $("settingsModal").classList.add("hidden");
-});
-$("addRuleBtn").addEventListener("click", () => {
-  $("rulesTable").querySelector("tbody").appendChild(ruleRow({}));
-});
 
 function collectRules() {
   return [...$("rulesTable").querySelectorAll("tbody tr")].map((tr) => ({
@@ -281,6 +273,8 @@ function settingsPayload() {
 
 $("settingsForm").addEventListener("submit", async (e) => {
   e.preventDefault();
+  $("settingsError").classList.add("hidden");
+  $("settingsSaved").classList.add("hidden");
   const res = await fetch("/api/settings", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -290,7 +284,8 @@ $("settingsForm").addEventListener("submit", async (e) => {
     const j = await res.json().catch(() => ({}));
     return settingsErr(j.error || "saving failed");
   }
-  $("settingsModal").classList.add("hidden");
+  $("settingsSaved").classList.remove("hidden");
+  loadSettings(); // refresh placeholders (e.g. hasPassword)
 });
 
 $("testMailBtn").addEventListener("click", async () => {
@@ -710,16 +705,21 @@ function loadSite(name) {
 function route() {
   clearTimers();
   const m = location.hash.match(/^#\/site\/(.+)$/);
+  $("overview").classList.add("hidden");
+  $("siteview").classList.add("hidden");
+  $("settingsview").classList.add("hidden");
   if (m) {
     state.view = "site";
     state.site = decodeURIComponent(m[1]);
-    $("overview").classList.add("hidden");
     $("siteview").classList.remove("hidden");
     every(15000, () => loadSite(state.site).catch(() => {}));
+  } else if (location.hash === "#/settings") {
+    state.view = "settings";
+    $("settingsSaved").classList.add("hidden");
+    $("settingsview").classList.remove("hidden");
+    loadSettings();
   } else {
     state.view = "overview";
-    state.site = null;
-    $("siteview").classList.add("hidden");
     $("overview").classList.remove("hidden");
     every(10000, () => loadOverview().catch(() => {}));
   }
