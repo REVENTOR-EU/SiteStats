@@ -4,6 +4,7 @@ package engine
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"sync"
 	"sync/atomic"
@@ -38,7 +39,7 @@ type Collector struct {
 }
 
 func NewCollector(cfg *config.Config, st *store.Store, al *alerter.Alerter) *Collector {
-	return &Collector{
+	c := &Collector{
 		cfg:         cfg,
 		store:       st,
 		aler:        al,
@@ -47,6 +48,22 @@ func NewCollector(cfg *config.Config, st *store.Store, al *alerter.Alerter) *Col
 		fpmAccepted: map[string]int64{},
 		fpmFlushed:  map[string]int64{},
 	}
+	// alert messages should name the actual website, not the linux user
+	al.SetNameFn(func(user string) string {
+		if user == "_sys" {
+			return "system services (non-site processes, e.g. mysql)"
+		}
+		if user == "_system" {
+			return "server"
+		}
+		if reg := c.reg.Load(); reg != nil {
+			if s := reg.Get(user); s != nil && s.Domain != "" {
+				return fmt.Sprintf("%s (%s)", user, s.Domain)
+			}
+		}
+		return user
+	})
+	return c
 }
 
 func (c *Collector) Registry() *sites.Registry { return c.reg.Load() }

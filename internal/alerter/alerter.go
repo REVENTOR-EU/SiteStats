@@ -32,6 +32,9 @@ type Alerter struct {
 	cfg    config.AlertConfig
 	breach map[string]*breachState // ruleName|site -> state
 	nowFn  func() int64
+	// nameFn renders a human-readable label for a site key in alert
+	// messages (e.g. "user (domain)"); nil falls back to the raw key
+	nameFn func(site string) string
 }
 
 func New(cfg config.AlertConfig) *Alerter {
@@ -145,7 +148,7 @@ func (a *Alerter) Evaluate(rows []collect.MinuteRow, memTotalMB float64) []Event
 						Site:     row.Site,
 						Severity: rule.Severity,
 						Message: fmt.Sprintf("%s: %s %.1f (threshold %s %.1f for %s)",
-							rule.Name, displayName(row.Site, rule.Metric), v, rule.Op, rule.Value, rule.For),
+							rule.Name, displayName(a, row.Site, rule.Metric), v, rule.Op, rule.Value, rule.For),
 					}
 					fired = append(fired, ev)
 				}
@@ -163,9 +166,22 @@ func (a *Alerter) Evaluate(rows []collect.MinuteRow, memTotalMB float64) []Event
 	return fired
 }
 
-func displayName(site, metric string) string {
+// SetNameFn installs a label resolver used when composing alert messages.
+func (a *Alerter) SetNameFn(fn func(site string) string) { a.nameFn = fn }
+
+// label returns the display label for a site key.
+func (a *Alerter) label(site string) string {
+	if a.nameFn != nil {
+		if s := a.nameFn(site); s != "" {
+			return s
+		}
+	}
+	return site
+}
+
+func displayName(a *Alerter, site, metric string) string {
 	if strings.HasPrefix(metric, "system.") {
 		return "system " + strings.TrimPrefix(metric, "system.")
 	}
-	return fmt.Sprintf("site %s", site)
+	return fmt.Sprintf("site %s", a.label(site))
 }
