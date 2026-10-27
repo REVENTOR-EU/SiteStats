@@ -214,6 +214,7 @@ const METRICS = [
   ["system.load1", "System load (1 min)"],
   ["system.load5", "System load (5 min)"],
   ["system.load15", "System load (15 min)"],
+  ["system.mem_pct", "System RAM used (% of total)"],
 ];
 
 let draftRules = [];

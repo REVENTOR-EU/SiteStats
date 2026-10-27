@@ -551,6 +551,7 @@ var validAlertMetrics = map[string]bool{
 	"site.cpu": true, "site.mem": true, "site.mem_pct": true,
 	"site.req": true, "site.err5": true,
 	"system.cpu": true, "system.load1": true, "system.load5": true, "system.load15": true,
+	"system.mem_pct": true,
 }
 
 var validAlertOps = map[string]bool{">": true, ">=": true, "<": true, "<=": true}

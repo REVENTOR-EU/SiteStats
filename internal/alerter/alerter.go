@@ -73,6 +73,11 @@ func metricValue(metric string, row *collect.MinuteRow, memTotalMB float64) (flo
 		return float64(row.R5xx), true
 	case "system.cpu":
 		return row.CPU, true
+	case "system.mem_pct":
+		if memTotalMB <= 0 || row.Site != "_system" {
+			return 0, false
+		}
+		return row.MemMB / memTotalMB * 100, true
 	case "system.load1":
 		return row.Load1, true
 	case "system.load5":
