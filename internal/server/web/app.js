@@ -408,6 +408,13 @@ function stackedChart(el, entries) {
       width: 1,
       points: { show: false },
       spanGaps: true,
+      // legend/tooltip value: the band's own share, not its cumulative
+      // upper boundary (series k's lower boundary is series k+1)
+      value: (u2, v, si, di) => {
+        if (v == null) return "–";
+        const lower = si < u2.data.length - 1 ? (u2.data[si + 1][di] ?? 0) : 0;
+        return Math.max(0, v - lower).toFixed(2) + "%";
+      },
     });
   }
   const opts = {
