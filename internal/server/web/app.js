@@ -370,6 +370,13 @@ function stackedChart(el, entries) {
   const built = buildBands(entries);
   const n = built.bands.length;
 
+  // hover tooltip: report the band (site) under the cursor
+  el.style.position = "relative";
+  el.innerHTML = "";
+  const tip = document.createElement("div");
+  tip.className = "chart-tip";
+  el.appendChild(tip);
+
   // cumulative rows: band i's line = sum of bands 0..i (bottom-up)
   const cum = [];
   for (let b = 0; b < n; b++) {
@@ -409,6 +416,33 @@ function stackedChart(el, entries) {
     height: 280,
     scales: { x: { time: true }, y: { auto: false, range: () => [0, softMax] } },
     series,
+    hooks: {
+      setCursor: [(u) => {
+        const { left, top } = u.cursor;
+        if (left == null || left < 0 || top == null || top < 0) {
+          tip.style.opacity = 0;
+          return;
+        }
+        const idx = u.posToIdx(left);
+        const yv = u.posToVal(top, "y");
+        // data[1..n] are the cumulative rows, pushed top band first, so
+        // series k corresponds to band n-k; the band under yv is the one
+        // whose cumulative line is the lowest one still >= yv
+        let k = 0;
+        for (let s = 1; s <= n; s++) {
+          const cum = data[s][idx];
+          if (cum != null && cum >= yv) { k = s; break; }
+        }
+        if (!k) { tip.style.opacity = 0; return; }
+        const lower = k < n ? (data[k + 1][idx] ?? 0) : 0;
+        const val = (data[k][idx] ?? 0) - lower;
+        const band = built.bands[n - k];
+        tip.textContent = `${band.name}: ${val.toFixed(1)}%`;
+        tip.style.left = Math.min(left + 14, u.width - 130) + "px";
+        tip.style.top = Math.max(top - 12, 0) + "px";
+        tip.style.opacity = 1;
+      }],
+    },
   };
   const up = new uPlot(opts, data, el);
   settleSize(up, el, 280);
