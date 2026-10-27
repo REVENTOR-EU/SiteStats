@@ -136,17 +136,18 @@ func TestParseAccessLineTruncated(t *testing.T) {
 	}
 }
 
-func TestEncodeNV(t *testing.T) {
-	got := encodeNV("abc")
-	if got[0] != 3 || string(got[1:]) != "abc" {
-		t.Fatalf("short nv = %v", got)
+func TestEncodeNVPair(t *testing.T) {
+	got := encodeNVPair("abc", "de")
+	want := []byte{3, 2, 'a', 'b', 'c', 'd', 'e'}
+	if string(got) != string(want) {
+		t.Fatalf("nv pair = %v, want %v", got, want)
 	}
 	long := make([]byte, 300)
 	for i := range long {
 		long[i] = 'x'
 	}
-	gotLong := encodeNV(string(long))
-	if len(gotLong) != 304 || gotLong[0]&0x80 == 0 {
-		t.Fatalf("long nv encoding wrong: len=%d first=%x", len(gotLong), gotLong[0])
+	gotLong := encodeNVPair("k", string(long))
+	if len(gotLong) != 1+4+1+300 || gotLong[0] != 1 || gotLong[1]&0x80 == 0 {
+		t.Fatalf("long value encoding wrong: len=%d head=%x", len(gotLong), gotLong[:2])
 	}
 }

@@ -371,15 +371,17 @@ func (c *Collector) pollFpm() {
 		if len(site.Pools) == 0 {
 			continue
 		}
-		wg.Add(1)
-		go func(user, domain string) {
-			defer wg.Done()
-			st, err := collect.QueryFpmStatusViaNginx(domain, c.cfg.Collect.FpmStatusPath, 5*time.Second)
-			if err != nil {
-				return // pool down or nginx map entry missing: silently skip
-			}
-			out <- res{user, st}
-		}(site.User, site.Domain)
+		for _, pool := range site.Pools {
+			wg.Add(1)
+			go func(user string, p sites.PoolAddr) {
+				defer wg.Done()
+				st, err := collect.QueryFpmStatus(p.Addr, p.StatusPath, 5*time.Second)
+				if err != nil {
+					return // pool down or status page missing: silently skip
+				}
+				out <- res{user, st}
+			}(site.User, pool)
+		}
 	}
 	go func() {
 		wg.Wait()

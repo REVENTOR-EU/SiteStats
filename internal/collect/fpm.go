@@ -1,6 +1,7 @@
 package collect
 
 import (
+	"bytes"
 	"crypto/tls"
 	"encoding/binary"
 	"encoding/json"
@@ -11,6 +12,14 @@ import (
 	"time"
 )
 
+// snippet returns the first 80 bytes of s for error messages.
+func snippet(s []byte) string {
+	if len(s) > 80 {
+		s = s[:80]
+	}
+	return string(s)
+}
+
 // Minimal FastCGI ( responder role ) client, enough to fetch a PHP-FPM pool
 // status page over TCP.
 
@@ -20,6 +29,7 @@ const (
 	fcgiParams       = 4
 	fcgiStdin        = 5
 	fcgiStdout       = 6
+	fcgiStderr       = 7
 )
 
 type fpmJSON struct {
@@ -69,17 +79,18 @@ func QueryFpmStatus(addr, statusPath string, timeout time.Duration) (*FpmStatus,
 		return nil, err
 	}
 
-	// PARAMS
+	// PARAMS — name-value pairs are encoded as nameLen, valueLen, name,
+	// value (both lengths together, BEFORE the data)
 	params := map[string]string{
 		"SCRIPT_NAME":     statusPath,
+		"SCRIPT_FILENAME": statusPath,
 		"QUERY_STRING":    "json",
 		"REQUEST_METHOD":  "GET",
 		"SERVER_PROTOCOL": "HTTP/1.1",
 	}
 	var nv []byte
 	for k, v := range params {
-		nv = append(nv, encodeNV(k)...)
-		nv = append(nv, encodeNV(v)...)
+		nv = append(nv, encodeNVPair(k, v)...)
 	}
 	if err := writeRecord(fcgiParams, nv); err != nil {
 		return nil, err
@@ -107,9 +118,16 @@ func QueryFpmStatus(addr, statusPath string, timeout time.Duration) (*FpmStatus,
 		switch hdr[1] {
 		case fcgiStdout:
 			out = append(out, body[:length]...)
+		case fcgiStderr:
+			// ignore pool stderr chatter
 		case fcgiEndRequest:
-			if len(out) == 0 {
-				return nil, fmt.Errorf("empty status response from %s (pm.status_path set?)", addr)
+			// stdout is CGI-style: optional "Status: ..." and Content-type
+			// headers, blank line, then the body — skip to the JSON
+			if i := bytes.IndexByte(out, '{'); i > 0 {
+				out = out[i:]
+			}
+			if len(out) == 0 || out[0] != '{' {
+				return nil, fmt.Errorf("no JSON status from %s (pm.status_path set?): %q", addr, snippet(out))
 			}
 			var j fpmJSON
 			if err := json.Unmarshal(out, &j); err != nil {
@@ -130,24 +148,30 @@ func QueryFpmStatus(addr, statusPath string, timeout time.Duration) (*FpmStatus,
 	}
 }
 
-func encodeNV(s string) []byte {
-	l := len(s)
-	if l < 128 {
-		return append([]byte{byte(l)}, s...)
+// encodeNVPair encodes one FastCGI name-value pair: the two lengths come
+// first (each 1 byte, or 4 bytes big-endian with the high bit set for
+// lengths >= 128), followed by the name bytes and the value bytes.
+func encodeNVPair(k, v string) []byte {
+	lenBytes := func(n int) []byte {
+		if n < 128 {
+			return []byte{byte(n)}
+		}
+		b := make([]byte, 4)
+		b[0] = byte(n>>24) | 0x80
+		b[1] = byte(n >> 16)
+		b[2] = byte(n >> 8)
+		b[3] = byte(n)
+		return b
 	}
-	b := make([]byte, 4, 4+len(s))
-	b[0] = byte(l>>24) | 0x80
-	b[1] = byte(l >> 16)
-	b[2] = byte(l >> 8)
-	b[3] = byte(l)
-	return append(b, s...)
+	out := lenBytes(len(k))
+	out = append(out, lenBytes(len(v))...)
+	out = append(out, k...)
+	return append(out, v...)
 }
 
-// FPM pool status is fetched through the local nginx: each CloudPanel vhost
-// exposes an internal, loopback-only location (/wstats-fpm-status by default)
-// that fastcgi_passes to the site's pool. Direct FastCGI dialing is refused
-// by this server's PHP-FPM for non-nginx clients, so nginx is the reliable
-// route.
+// FPM pool status is queried directly over FastCGI from the pool's listen
+// address (discovered from its pool.d config, including its pm.status_path);
+// no nginx location is needed.
 
 // QueryFpmStatusViaNginx fetches the pool status page (JSON) for a site from
 // the local nginx vhost. TLS SNI and Host select the vhost; the certificate
