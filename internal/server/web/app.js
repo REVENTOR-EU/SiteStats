@@ -312,11 +312,26 @@ $("testMailBtn").addEventListener("click", async () => {
 
 /* ---------- charts ---------- */
 
+// uPlot defaults draw axis text in black, unreadable on the dark background
+const darkAxes = [
+  {
+    stroke: "#8b96a5",
+    grid: { stroke: "rgba(255,255,255,.08)" },
+    ticks: { stroke: "rgba(255,255,255,.15)" },
+  },
+  {
+    stroke: "#8b96a5",
+    grid: { stroke: "rgba(255,255,255,.08)" },
+    ticks: { stroke: "rgba(255,255,255,.15)" },
+  },
+];
+
 const chartDefaults = {
   width: 600,
   height: 240,
   ms: true,
   scales: { x: { time: true } },
+  axes: darkAxes,
 };
 
 function chartWidth(el) {
@@ -581,6 +596,7 @@ function lineChart(el, defs, height = 190, yFmt = (v) => v, yMax = null) {
     ms: true,
     scales: yScale,
     series,
+    axes: darkAxes,
     hooks,
   };
   const up = new uPlot(opts, [xs, ...aligned.cols], el);
