@@ -163,9 +163,12 @@ func parseAccessLine(line string) (ip, method, path string, status int, bytes in
 	if m, p, found := strings.Cut(request, " "); found {
 		method = m
 		path = p
-		// strip query string and trailing " HTTP/x.y" protocol
-		if j := strings.IndexAny(path, "? "); j >= 0 {
+		// strip the query string (which also drops the trailing protocol);
+		// queryless requests keep spaced paths but need " HTTP/x.y" removed
+		if j := strings.Index(path, "?"); j >= 0 {
 			path = path[:j]
+		} else if k := strings.LastIndex(path, " HTTP/"); k >= 0 {
+			path = path[:k]
 		}
 	} else {
 		path = request
