@@ -151,3 +151,17 @@ func TestEncodeNVPair(t *testing.T) {
 		t.Fatalf("long value encoding wrong: len=%d head=%x", len(gotLong), gotLong[:2])
 	}
 }
+
+func TestParseAccessLineUA(t *testing.T) {
+	line := `1.2.3.4 - - [29/Oct/2026:00:18:08 +0100] "GET /x/ HTTP/2.0" 200 28101 "-" "Mozilla/5.0 (compatible; SemrushBot/7~bl)" "1.2.3.4"`
+	ip, method, path, status, bytes, ua, ok := parseAccessLine(line)
+	if !ok {
+		t.Fatal("parse failed")
+	}
+	if ip != "1.2.3.4" || method != "GET" || path != "/x/" || status != 200 || bytes != 28101 {
+		t.Fatalf("wrong fields: %v %v %v %v %v", ip, method, path, status, bytes)
+	}
+	if ua != "Mozilla/5.0 (compatible; SemrushBot/7~bl)" {
+		t.Fatalf("ua = %q, want SemrushBot UA", ua)
+	}
+}

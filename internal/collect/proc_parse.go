@@ -187,8 +187,8 @@ func parseAccessLine(line string) (ip, method, path string, status int, bytes in
 		}
 		bytes = b
 	}
-	// quoted fields after status/bytes: "referer" "user-agent" ["xff"]
-	ua = nthQuoted(afterReq, 2)
+	// quoted fields after status/bytes: 0="referer", 1="user-agent", [2="xff"]
+	ua = nthQuoted(afterReq, 1)
 	return ip, method, path, status, bytes, ua, true
 }
 
