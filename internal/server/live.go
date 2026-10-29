@@ -7,17 +7,22 @@ import (
 	"net/http"
 	"os/exec"
 	"strings"
+
+	"github.com/REVENTOR-EU/SiteStats/internal/geo"
 )
 
 // liveHitJSON is one entry of the site's live request log.
 type liveHitJSON struct {
-	Ts     int64      `json:"ts"`
-	IP     string     `json:"ip"`
-	Method string     `json:"method"`
-	Path   string     `json:"path"`
-	Status int        `json:"status"`
-	Bytes  int64      `json:"bytes"`
-	Bot    BotVerdict `json:"bot"`
+	Ts      int64      `json:"ts"`
+	IP      string     `json:"ip"`
+	Method  string     `json:"method"`
+	Path    string     `json:"path"`
+	Status  int        `json:"status"`
+	Bytes   int64      `json:"bytes"`
+	Bot     BotVerdict `json:"bot"`
+	Country string     `json:"country"`
+	City    string     `json:"city"`
+	ASNOrg  string     `json:"asnorg"`
 }
 
 func (s *Server) handleSiteLive(w http.ResponseWriter, r *http.Request) {
@@ -25,17 +30,29 @@ func (s *Server) handleSiteLive(w http.ResponseWriter, r *http.Request) {
 	hits := s.col.LiveHits(user)
 	// newest first; classify each unique IP once per response
 	out := make([]liveHitJSON, 0, len(hits))
-	cache := map[string]BotVerdict{}
+	type ipInfo struct {
+		bot BotVerdict
+		g   geo.Lookup
+	}
+	cache := map[string]ipInfo{}
 	for i := len(hits) - 1; i >= 0; i-- {
 		h := hits[i]
-		v, ok := cache[h.IP]
+		info, ok := cache[h.IP]
 		if !ok {
-			v = s.bots.Classify(h.IP, h.UA)
-			cache[h.IP] = v
+			info.bot = s.bots.Classify(h.IP, h.UA)
+			if s.geo != nil {
+				info.g = s.geo.Lookup(net.ParseIP(h.IP))
+				// surface the confirming network even when rDNS did it
+				if info.bot.NetOrg == "" && info.g.ASNOrg != "" && info.bot.Verified == "yes" {
+					info.bot.NetOrg = info.g.ASNOrg
+				}
+			}
+			cache[h.IP] = info
 		}
 		out = append(out, liveHitJSON{
 			Ts: h.Ts, IP: h.IP, Method: h.Method, Path: h.Path,
-			Status: h.Status, Bytes: h.Bytes, Bot: v,
+			Status: h.Status, Bytes: h.Bytes, Bot: info.bot,
+			Country: info.g.Country, City: info.g.City, ASNOrg: info.g.ASNOrg,
 		})
 	}
 	writeJSON(w, 200, map[string]any{"hits": out})

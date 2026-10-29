@@ -818,9 +818,20 @@ function ipColor(ip) {
   return { bg: `hsla(${hue},55%,45%,.28)`, fg: `hsl(${hue},75%,72%)` };
 }
 
+function flagOf(cc) {
+  if (!cc || cc.length !== 2) return "";
+  return String.fromCodePoint(...[...cc.toUpperCase()].map(c => 0x1f1e6 + c.charCodeAt(0) - 65));
+}
+
+function geoCell(h) {
+  if (!h.country) return '<span class="hint">–</span>';
+  const tip = [h.city, h.asnorg].filter(Boolean).join(" · ");
+  return `<span title="${esc(tip)}">${flagOf(h.country)} ${esc(h.country)}</span>`;
+}
+
 function botBadge(bot) {
   if (!bot.vendor) return '<span class="hint">–</span>';
-  if (bot.verified === "yes") return `<span class="botbadge ok" title="identity confirmed via reverse DNS">${esc(bot.vendor)} ✓</span>`;
+  if (bot.verified === "yes") return `<span class="botbadge ok" title="identity confirmed${bot.netorg ? ` via network owner ${esc(bot.netorg)}` : " via reverse DNS"}">${esc(bot.vendor)} ✓</span>`;
   if (bot.verified === "fake") return `<span class="botbadge fake" title="claims to be ${esc(bot.vendor)} but its reverse DNS points elsewhere — likely spoofed">FAKE ${esc(bot.vendor)}</span>`;
   return `<span class="botbadge unver" title="claims to be ${esc(bot.vendor)} but publishes no reverse DNS, so the claim cannot be checked">${esc(bot.vendor)} ?</span>`;
 }
@@ -838,7 +849,7 @@ function renderLive(hits) {
   const tb = $("liveLog");
   if (!tb) return;
   if (!hits.length) {
-    tb.innerHTML = '<tr><td colspan="6" class="livelog-empty">no requests seen yet — fills up as traffic arrives (last few minutes)</td></tr>';
+    tb.innerHTML = '<tr><td colspan="7" class="livelog-empty">no requests seen yet — fills up as traffic arrives (last few minutes)</td></tr>';
     return;
   }
   tb.innerHTML = hits.map((h) => {
@@ -849,7 +860,8 @@ function renderLive(hits) {
       : `<button class="banbtn" data-ip="${esc(h.ip)}">ban</button>` + rangeButtons(h.ip);
     return `<tr>
       <td>${new Date(h.ts * 1000).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", second: "2-digit" })}</td>
-      <td><span class="ipchip" style="background:${c.bg};color:${c.fg}">${esc(h.ip)}</span></td>
+      <td><span class="ipchip" style="background:${c.bg};color:${c.fg}" title="${esc(h.asnorg || "")}">${esc(h.ip)}</span></td>
+      <td>${geoCell(h)}</td>
       <td>${botBadge(h.bot)}</td>
       <td style="color:${statusCls(h.status)}">${h.status}</td>
       <td class="path"><b>${esc(h.method)}</b> ${esc(h.path)}</td>

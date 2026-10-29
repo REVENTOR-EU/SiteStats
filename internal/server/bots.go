@@ -6,6 +6,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/REVENTOR-EU/SiteStats/internal/geo"
 )
 
 // botVendor is one known crawler family: the user-agent token it advertises
@@ -53,6 +55,55 @@ var botVendors = []botVendor{
 type BotVerdict struct {
 	Vendor   string `json:"vendor"`   // advertised vendor token, "" if none
 	Verified string `json:"verified"` // "yes" | "fake" (PTR exists, wrong domain) | "noptr" (no PTR published) | "" (not a bot token)
+	NetOrg   string `json:"netorg"`   // network owner that confirmed the claim via ASN, "" if unmatched
+}
+
+// asnOrgKeywords maps a bot token family to substrings of ASN organization
+// names that legitimately operate those crawlers. A claim matched by network
+// owner is strong proof even without reverse DNS (e.g. Meta publishes none).
+var asnOrgKeywords = map[string][]string{
+	"Googlebot":            {"google"},
+	"Google-InspectionTool": {"google"},
+	"Bingbot":              {"microsoft"},
+	"DuckDuckBot":          {"duckduckgo"},
+	"Baiduspider":          {"baidu"},
+	"YandexBot":            {"yandex"},
+	"Applebot":             {"apple"},
+	"SemrushBot":           {"semrush"},
+	"AhrefsBot":            {"ahrefs"},
+	"MJ12bot":              {"majestic"},
+	"PetalBot":             {"huawei"},
+	"GPTBot":               {"openai"},
+	"OAI-SearchBot":        {"openai"},
+	"ChatGPT-User":         {"openai"},
+	"ClaudeBot":            {"anthropic"},
+	"Claude-User":          {"anthropic"},
+	"Claude-SearchBot":     {"anthropic"},
+	"anthropic-ai":         {"anthropic"},
+	"PerplexityBot":        {"perplexity"},
+	"Amazonbot":            {"amazon"},
+	"FacebookBot":          {"meta", "facebook"},
+	"meta-externalagent":   {"meta", "facebook"},
+	"meta-webindexer":      {"meta", "facebook"},
+	"Twitterbot":           {"twitter", "x corp"},
+	"LinkedInBot":          {"linkedin", "microsoft"},
+	"Slurp":                {"yahoo"},
+	"Bytespider":           {"bytedance", "tiktok"},
+	"Uptime-Kuma":          nil, // self-hosted: cannot be network-verified
+}
+
+func asnOrgMatches(token, org string) bool {
+	kws := asnOrgKeywords[token]
+	if org == "" || len(kws) == 0 {
+		return false
+	}
+	org = strings.ToLower(org)
+	for _, k := range kws {
+		if strings.Contains(org, k) {
+			return true
+		}
+	}
+	return false
 }
 
 // botCache remembers rDNS verdicts per IP so the live log doesn't hammer the
@@ -63,6 +114,7 @@ type botCache struct {
 	res     *net.Resolver
 	timeout time.Duration
 	ttl     time.Duration
+	geo     *geo.DB
 }
 
 type botEntry struct {
@@ -70,12 +122,13 @@ type botEntry struct {
 	done time.Time
 }
 
-func newBotCache() *botCache {
+func newBotCache(geoDB *geo.DB) *botCache {
 	return &botCache{
 		m:       map[string]botEntry{},
 		res:     net.DefaultResolver,
 		timeout: 3 * time.Second,
 		ttl:     6 * time.Hour,
+		geo:     geoDB,
 	}
 }
 
@@ -110,6 +163,16 @@ func (b *botCache) Classify(ip, ua string) BotVerdict {
 		verdict.Verified = "yes"
 	case hasPTR:
 		verdict.Verified = "fake" // reverse DNS exists but points elsewhere
+	default:
+		// no reverse DNS to check: the network owner is the remaining proof.
+		// A claimed Meta crawler sitting in Meta's AS32934 is confirmed even
+		// though Meta publishes no PTR records.
+		if b.geo != nil {
+			if gl := b.geo.Lookup(net.ParseIP(ip)); asnOrgMatches(vendor, gl.ASNOrg) {
+				verdict.Verified = "yes"
+				verdict.NetOrg = gl.ASNOrg
+			}
+		}
 	}
 
 	b.mu.Lock()

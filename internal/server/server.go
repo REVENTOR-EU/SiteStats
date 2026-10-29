@@ -6,6 +6,7 @@ import (
 	"embed"
 	"encoding/hex"
 	"encoding/json"
+	"path/filepath"
 	"fmt"
 	"io/fs"
 	"log"
@@ -22,6 +23,7 @@ import (
 	"github.com/REVENTOR-EU/SiteStats/internal/collect"
 	"github.com/REVENTOR-EU/SiteStats/internal/config"
 	"github.com/REVENTOR-EU/SiteStats/internal/engine"
+	"github.com/REVENTOR-EU/SiteStats/internal/geo"
 	"github.com/REVENTOR-EU/SiteStats/internal/store"
 )
 
@@ -46,12 +48,26 @@ type Server struct {
 		m map[string][]time.Time // ip -> failed login times
 	}
 	bots *botCache
+	geo  *geo.DB
 }
 
 func New(cfg *config.Config, st *store.Store, col *engine.Collector, al *alerter.Alerter, configPath string) *Server {
 	s := &Server{cfg: cfg, configPath: configPath, st: st, col: col, al: al}
 	s.attM.m = map[string][]time.Time{}
-	s.bots = newBotCache()
+	geoDir := cfg.GeoDir
+	if geoDir == "" {
+		geoDir = "geo"
+	}
+	s.geo = geo.Open(filepath.Join(geoDir, "country.mmdb"), filepath.Join(geoDir, "asn.mmdb"))
+	s.geo.Reload()
+	s.bots = newBotCache(s.geo)
+	// pick up refreshed database downloads once a day
+	go func() {
+		t := time.NewTicker(24 * time.Hour)
+		for range t.C {
+			s.geo.Reload()
+		}
+	}()
 	return s
 }
 

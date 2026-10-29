@@ -41,6 +41,7 @@ func (d Duration) MarshalYAML() (interface{}, error) { return d.String(), nil }
 type Config struct {
 	Listen       string   `yaml:"listen"`
 	DataDir      string   `yaml:"data_dir"`
+	GeoDir       string   `yaml:"geo_dir"` // mmdb files (country/ASN); empty = ./geo
 	PasswordHash string   `yaml:"password_hash"`
 	SessionTTL   Duration `yaml:"session_ttl"`
 
