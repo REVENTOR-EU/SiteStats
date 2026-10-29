@@ -740,7 +740,7 @@ function renderOverview(d) {
 
   const list = $("eventsList");
   list.innerHTML = d.events.length
-    ? d.events.map((e) => `<li><span class="when">${fmtTs(e.ts)}</span><span class="sev ${esc(e.severity || "warning")}">${esc(e.severity || "warning")}</span><span><b>${esc(e.site)}</b> — ${esc(e.message)}</span></li>`).join("")
+    ? d.events.map((e) => `<li><span class="when">${fmtTs(e.ts)}</span><span class="sev ${esc(e.severity || "warning")}">${esc(e.severity || "warning")}</span><span title="${esc(e.message)}"><b>${esc(e.site)}</b> — ${esc(e.message)}</span></li>`).join("")
     : '<li class="empty">no alerts fired yet</li>';
 }
 
@@ -805,7 +805,7 @@ function renderSite(d) {
   if (disk.length) lineChart($("diskChart"), [{ name: "disk", color: "#4c8dff", series: disk }], 170, (v) => fmtBytes(v));
 
   $("siteEvents").innerHTML = events.length
-    ? events.map((e) => `<li><span class="when">${fmtTs(e.ts)}</span><span class="sev ${esc(e.severity || "warning")}">${esc(e.severity || "warning")}</span><span>${esc(e.message)}</span></li>`).join("")
+    ? events.map((e) => `<li><span class="when">${fmtTs(e.ts)}</span><span class="sev ${esc(e.severity || "warning")}">${esc(e.severity || "warning")}</span><span title="${esc(e.message)}">${esc(e.message)}</span></li>`).join("")
     : '<li class="empty">no alerts for this site</li>';
 }
 
@@ -818,15 +818,11 @@ function ipColor(ip) {
   return { bg: `hsla(${hue},55%,45%,.28)`, fg: `hsl(${hue},75%,72%)` };
 }
 
-function flagOf(cc) {
-  if (!cc || cc.length !== 2) return "";
-  return String.fromCodePoint(...[...cc.toUpperCase()].map(c => 0x1f1e6 + c.charCodeAt(0) - 65));
-}
-
 function geoCell(h) {
   if (!h.country) return '<span class="hint">–</span>';
+  // no emoji flags: Windows browsers render them as plain letters
   const tip = [h.city, h.asnorg].filter(Boolean).join(" · ");
-  return `<span title="${esc(tip)}">${flagOf(h.country)} ${esc(h.country)}</span>`;
+  return `<span class="geochip" title="${esc(tip)}">${esc(h.country)}</span>`;
 }
 
 function botBadge(bot) {
