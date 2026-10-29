@@ -57,7 +57,12 @@ func (s *Server) ufw(args ...string) error {
 	return nil
 }
 
-func validIP(s string) bool {
+// validTarget accepts a single IP or a CIDR range (ufw handles both).
+func validTarget(s string) bool {
+	if strings.Contains(s, "/") {
+		_, _, err := net.ParseCIDR(s)
+		return err == nil
+	}
 	return net.ParseIP(s) != nil
 }
 
@@ -71,7 +76,7 @@ func (s *Server) handleBan(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	req.IP = strings.TrimSpace(req.IP)
-	if !validIP(req.IP) {
+	if !validTarget(req.IP) {
 		writeErr(w, 400, "invalid IP address")
 		return
 	}
@@ -114,7 +119,7 @@ func (s *Server) handleBans(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 		for _, f := range fields {
-			if validIP(f) && action == "deny" {
+			if validTarget(f) && action == "deny" {
 				banned = append(banned, f)
 			}
 		}

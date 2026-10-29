@@ -50,7 +50,7 @@ var botVendors = []botVendor{
 // BotVerdict is the classification of one (IP, user-agent) pair.
 type BotVerdict struct {
 	Vendor   string `json:"vendor"`   // advertised vendor token, "" if none
-	Verified string `json:"verified"` // "yes" | "no" | "" (not a bot token)
+	Verified string `json:"verified"` // "yes" | "fake" (PTR exists, wrong domain) | "noptr" (no PTR published) | "" (not a bot token)
 }
 
 // botCache remembers rDNS verdicts per IP so the live log doesn't hammer the
@@ -101,9 +101,13 @@ func (b *botCache) Classify(ip, ua string) BotVerdict {
 	}
 	b.mu.Unlock()
 
-	verdict := BotVerdict{Vendor: vendor, Verified: "no"}
-	if b.forwardConfirm(ip, vendor) {
+	verdict := BotVerdict{Vendor: vendor, Verified: "noptr"}
+	ok, hasPTR := b.forwardConfirm(ip, vendor)
+	switch {
+	case ok:
 		verdict.Verified = "yes"
+	case hasPTR:
+		verdict.Verified = "fake" // reverse DNS exists but points elsewhere
 	}
 
 	b.mu.Lock()
@@ -112,7 +116,8 @@ func (b *botCache) Classify(ip, ua string) BotVerdict {
 	return verdict
 }
 
-func (b *botCache) forwardConfirm(ip, vendor string) bool {
+// forwardConfirm reports (forward-confirmed, any PTR existed at all).
+func (b *botCache) forwardConfirm(ip, vendor string) (bool, bool) {
 	var domains []string
 	for _, v := range botVendors {
 		if v.token == vendor {
@@ -124,7 +129,7 @@ func (b *botCache) forwardConfirm(ip, vendor string) bool {
 	defer cancel()
 	names, err := b.res.LookupAddr(ctx, ip)
 	if err != nil || len(names) == 0 {
-		return false
+		return false, false // no PTR published: identity cannot be checked
 	}
 	for _, name := range names {
 		name = strings.TrimSuffix(name, ".")
@@ -137,11 +142,11 @@ func (b *botCache) forwardConfirm(ip, vendor string) bool {
 				}
 				for _, a := range ips {
 					if a == ip {
-						return true
+						return true, true
 					}
 				}
 			}
 		}
 	}
-	return false
+	return false, true
 }

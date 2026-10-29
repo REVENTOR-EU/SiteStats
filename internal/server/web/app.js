@@ -58,7 +58,10 @@ function fmtBytes(n, perSec) {
 }
 function fmtInt(n) {
   if (n == null || isNaN(n)) return "–";
-  return Math.round(n).toLocaleString("en-US");
+  n = Math.round(n);
+  if (n >= 1e6) return (n / 1e6).toFixed(1).replace(/\.0$/, "") + "M";
+  if (n >= 1e4) return Math.round(n / 1e3) + "k";
+  return n.toLocaleString("en-US");
 }
 function fmtPct(n) {
   if (n == null || isNaN(n)) return "–";
@@ -817,8 +820,16 @@ function ipColor(ip) {
 
 function botBadge(bot) {
   if (!bot.vendor) return '<span class="hint">–</span>';
-  if (bot.verified === "yes") return `<span class="botbadge ok">${esc(bot.vendor)} ✓</span>`;
-  return `<span class="botbadge fake" title="claims to be ${esc(bot.vendor)} but reverse DNS does not confirm it">FAKE ${esc(bot.vendor)}</span>`;
+  if (bot.verified === "yes") return `<span class="botbadge ok" title="identity confirmed via reverse DNS">${esc(bot.vendor)} ✓</span>`;
+  if (bot.verified === "fake") return `<span class="botbadge fake" title="claims to be ${esc(bot.vendor)} but its reverse DNS points elsewhere — likely spoofed">FAKE ${esc(bot.vendor)}</span>`;
+  return `<span class="botbadge unver" title="claims to be ${esc(bot.vendor)} but publishes no reverse DNS, so the claim cannot be checked">${esc(bot.vendor)} ?</span>`;
+}
+
+// CIDR prefixes worth offering for a swarm of IPv6 crawler IPs
+function rangeButtons(ip) {
+  if (!ip.includes(":")) return "";
+  return `<button class="banbtn" data-ip="${esc(ip)}/64">ban /64</button>` +
+         `<button class="banbtn" data-ip="${esc(ip)}/32" title="blocks the whole carrier range, e.g. all of Meta's crawlers">ban /32</button>`;
 }
 
 function statusCls(st) { return st >= 500 ? "var(--red)" : st >= 400 ? "var(--yellow)" : "var(--muted)"; }
@@ -835,7 +846,7 @@ function renderLive(hits) {
     const banned = state.bans.has(h.ip);
     const btn = banned
       ? `<button class="banbtn" data-ip="${esc(h.ip)}" data-unban="1">unban</button>`
-      : `<button class="banbtn" data-ip="${esc(h.ip)}">ban</button>`;
+      : `<button class="banbtn" data-ip="${esc(h.ip)}">ban</button>` + rangeButtons(h.ip);
     return `<tr>
       <td>${new Date(h.ts * 1000).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", second: "2-digit" })}</td>
       <td><span class="ipchip" style="background:${c.bg};color:${c.fg}">${esc(h.ip)}</span></td>
@@ -850,7 +861,8 @@ function renderLive(hits) {
 // ban/unban with a confirm dialog; state.bans updates the buttons immediately
 async function toggleBan(ip, unban) {
   const what = unban ? "Unban" : "Ban";
-  if (!confirm(`${what} ${ip} via firewall (ufw)?`)) return;
+  const scope = ip.includes("/") ? `the RANGE ${ip}` : ip;
+  if (!confirm(`${what} ${scope} via firewall (ufw)?`)) return;
   await post("/api/ban", { ip, unban: !!unban });
   if (unban) state.bans.delete(ip); else state.bans.add(ip);
   loadBans();

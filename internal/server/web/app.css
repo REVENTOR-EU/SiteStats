@@ -261,3 +261,4 @@ table.livelog td.num { text-align: right; }
 .banbtn:disabled { opacity: .45; cursor: default; }
 .banbtn:disabled:hover { color: var(--muted); border-color: var(--border); }
 .livelog-empty { color: var(--muted); font-size: 12.5px; padding: 8px; }
+.botbadge.unver { background: rgba(212,167,44,.15); color: var(--yellow); }
