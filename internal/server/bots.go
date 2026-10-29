@@ -38,6 +38,7 @@ var botVendors = []botVendor{
 	{"Amazonbot", []string{"amazon.com"}},
 	{"FacebookBot", []string{"facebook.com"}},
 	{"meta-externalagent", []string{"facebook.com", "meta.com"}},
+	{"meta-webindexer", []string{"facebook.com", "meta.com"}},
 	{"Twitterbot", []string{"twitter.com", "x.com"}},
 	{"LinkedInBot", []string{"linkedin.com"}},
 	{"Slurp", []string{"yahoo.com", "inktomisearch.com"}},
