@@ -42,10 +42,6 @@ func (s *Server) handleSiteLive(w http.ResponseWriter, r *http.Request) {
 			info.bot = s.bots.Classify(h.IP, h.UA)
 			if s.geo != nil {
 				info.g = s.geo.Lookup(net.ParseIP(h.IP))
-				// surface the confirming network even when rDNS did it
-				if info.bot.NetOrg == "" && info.g.ASNOrg != "" && info.bot.Verified == "yes" {
-					info.bot.NetOrg = info.g.ASNOrg
-				}
 			}
 			cache[h.IP] = info
 		}
