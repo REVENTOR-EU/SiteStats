@@ -450,6 +450,12 @@ function stackedChart(el, entries) {
     height: 280,
     scales: { x: { time: true }, y: { auto: false, range: () => [0, softMax] } },
     series,
+    // percent ticks with whole numbers (browser-locale defaults print
+    // German-style "113.345" thousands dots, misread as fractions)
+    axes: [
+      darkAxes[0],
+      { ...darkAxes[1], values: (u, splits) => splits.map((v) => v.toFixed(0) + "%") },
+    ],
     hooks: {
       draw: [refLinesHook()],
       setCursor: [(u) => {
@@ -608,7 +614,12 @@ function lineChart(el, defs, height = 190, yFmt = (v) => v, yMax = null) {
     ms: true,
     scales: yScale,
     series,
-    axes: darkAxes,
+    // y ticks via the chart's own value formatter (whole numbers, no
+    // locale-dependent thousands dots)
+    axes: [
+      darkAxes[0],
+      { ...darkAxes[1], values: (u, splits) => splits.map((v) => yFmt(v)) },
+    ],
     hooks,
   };
   const up = new uPlot(opts, [xs, ...aligned.cols], el);
