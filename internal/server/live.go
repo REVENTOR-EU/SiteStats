@@ -58,7 +58,7 @@ func (s *Server) ufw(args ...string) error {
 }
 
 func validIP(s string) bool {
-	return net.ParseIP(s) != nil && !strings.Contains(s, ":")
+	return net.ParseIP(s) != nil
 }
 
 func (s *Server) handleBan(w http.ResponseWriter, r *http.Request) {
@@ -72,7 +72,7 @@ func (s *Server) handleBan(w http.ResponseWriter, r *http.Request) {
 	}
 	req.IP = strings.TrimSpace(req.IP)
 	if !validIP(req.IP) {
-		writeErr(w, 400, "invalid IPv4 address")
+		writeErr(w, 400, "invalid IP address")
 		return
 	}
 	var err error
@@ -92,7 +92,7 @@ func (s *Server) handleUnban(w http.ResponseWriter, r *http.Request) {
 	s.handleBan(w, r) // same payload shape, Unban flag distinguishes
 }
 
-// handleBans returns every IPv4 currently denied by ufw — whether the rule
+// handleBans returns every IP (v4+v6) currently denied by ufw — whether the rule
 // was created from the dashboard, by fail2ban, or by hand.
 func (s *Server) handleBans(w http.ResponseWriter, r *http.Request) {
 	out, err := exec.Command("/usr/sbin/ufw", "status").CombinedOutput()

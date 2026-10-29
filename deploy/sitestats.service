@@ -30,7 +30,8 @@ LockPersonality=true
 MemoryDenyWriteExecute=true
 SystemCallFilter=@system-service
 SystemCallErrorNumber=EPERM
-RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+# AF_NETLINK: iptables-nft (used by the dashboard ban button via ufw)
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6 AF_NETLINK
 
 [Install]
 WantedBy=multi-user.target
