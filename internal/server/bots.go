@@ -45,6 +45,8 @@ var botVendors = []botVendor{
 	{"Bytespider", []string{"bytedance.com", "bytespider.com"}},
 	{"DotBot", []string{"dotmoz.com"}},
 	{"Screaming Frog", []string{"screamingfrog.co.uk"}},
+	// monitoring services identify themselves honestly but publish no PTR
+	{"Uptime-Kuma", nil},
 }
 
 // BotVerdict is the classification of one (IP, user-agent) pair.
