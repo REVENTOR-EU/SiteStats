@@ -740,16 +740,18 @@ function renderSite(d) {
   const fpm = d.fpm;
   const disk = d.disk || [];
   const events = d.events || [];
+  const has = (k) => (d.series[k] && d.series[k].length ? d.series[k] : null);
+  const reqTotal = has("req") ? d.series.req.reduce((a, p) => a + (p[1] || 0), 0) : 0;
   $("siteCards").innerHTML =
+    statCard("req/min now", fmtInt(L.req)) +
+    statCard("Requests " + state.range, fmtInt(reqTotal)) +
     statCard("CPU now", fmtPct(L.cpu), L.cpu > 40 ? "crit" : "") +
     statCard("Memory", fmtBytes(L.mem * 1048576)) +
-    statCard("req/min", fmtInt(L.req)) +
     statCard("4xx / 5xx per min", `${fmtInt(L.r4)} / ${fmtInt(L.r5)}`, L.r5 > 0 ? "warn" : "") +
     statCard("Processes", fmtInt(L.procs)) +
     (fpm ? statCard("FPM active / queue", `${fpm.active} / ${fpm.listenQueue}`, fpm.listenQueue > 0 ? "warn" : "") : "") +
     (disk.length ? statCard("Disk (home)", fmtBytes(disk[disk.length - 1][1])) : "");
 
-  const has = (k) => (d.series[k] && d.series[k].length ? d.series[k] : null);
   const single = (k, color) => (has(k) ? [{ name: k, color, series: d.series[k] }] : null);
   if (has("cpu")) lineChart($("cpuChart"), single("cpu", "#4c8dff"), 190, (v) => v.toFixed(0) + "%", 100);
   if (has("mem")) lineChart($("memChart"), single("mem", "#3fb27f"), 190, (v) => fmtBytes(v * 1048576));
