@@ -14,6 +14,7 @@ const state = {
   timers: [],
   chartView: "areas",
   lastOverview: null,
+  bans: new Set(),
 };
 
 /* ---------- helpers ---------- */
@@ -65,6 +66,17 @@ function fmtPct(n) {
 }
 function fmtTs(ts) {
   return new Date(ts * 1000).toLocaleString("en-GB", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" });
+}
+
+async function post(path, body) {
+  const res = await fetch(path, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (res.status === 401) { showLogin(); throw new Error("unauthorized"); }
+  if (!res.ok) throw new Error(`${res.status} ${await res.text()}`);
+  return res.json();
 }
 
 async function api(path) {
@@ -783,6 +795,68 @@ function renderSite(d) {
     : '<li class="empty">no alerts for this site</li>';
 }
 
+/* ---------- live request log ---------- */
+
+function ipColor(ip) {
+  let h = 0;
+  for (let i = 0; i < ip.length; i++) h = (h * 31 + ip.charCodeAt(i)) >>> 0;
+  const hue = h % 360;
+  return { bg: `hsla(${hue},55%,45%,.28)`, fg: `hsl(${hue},75%,72%)` };
+}
+
+function botBadge(bot) {
+  if (!bot.vendor) return '<span class="hint">–</span>';
+  if (bot.verified === "yes") return `<span class="botbadge ok">${esc(bot.vendor)} ✓</span>`;
+  return `<span class="botbadge fake" title="claims to be ${esc(bot.vendor)} but reverse DNS does not confirm it">FAKE ${esc(bot.vendor)}</span>`;
+}
+
+function statusCls(st) { return st >= 500 ? "var(--red)" : st >= 400 ? "var(--yellow)" : "var(--muted)"; }
+
+function renderLive(hits) {
+  const tb = $("liveLog");
+  if (!tb) return;
+  if (!hits.length) {
+    tb.innerHTML = '<tr><td colspan="6" class="livelog-empty">no requests seen yet — fills up as traffic arrives (last few minutes)</td></tr>';
+    return;
+  }
+  tb.innerHTML = hits.map((h) => {
+    const c = ipColor(h.ip);
+    const banned = state.bans.has(h.ip);
+    const btn = banned
+      ? `<button class="banbtn" data-ip="${esc(h.ip)}" data-unban="1">unban</button>`
+      : `<button class="banbtn" data-ip="${esc(h.ip)}">ban</button>`;
+    return `<tr>
+      <td>${new Date(h.ts * 1000).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", second: "2-digit" })}</td>
+      <td><span class="ipchip" style="background:${c.bg};color:${c.fg}">${esc(h.ip)}</span></td>
+      <td>${botBadge(h.bot)}</td>
+      <td style="color:${statusCls(h.status)}">${h.status}</td>
+      <td class="path"><b>${esc(h.method)}</b> ${esc(h.path)}</td>
+      <td>${btn}</td>
+    </tr>`;
+  }).join("");
+}
+
+// ban/unban with a confirm dialog; state.bans updates the buttons immediately
+async function toggleBan(ip, unban) {
+  const what = unban ? "Unban" : "Ban";
+  if (!confirm(`${what} ${ip} via firewall (ufw)?`)) return;
+  await post("/api/ban", { ip, unban: !!unban });
+  if (unban) state.bans.delete(ip); else state.bans.add(ip);
+  loadBans();
+}
+
+async function loadBans() {
+  try {
+    const d = await api("/api/bans");
+    state.bans = new Set(d.banned || []);
+  } catch { /* keep old list */ }
+}
+
+async function loadLive(name) {
+  const d = await api(`/api/site/${encodeURIComponent(name)}/live`);
+  renderLive(d.hits || []);
+}
+
 function loadSite(name) {
   renderRanges($("siteRanges"), state.range, (r) => { state.range = r; route(); });
   return api(`/api/site/${encodeURIComponent(name)}?range=${state.range}`).then(renderSite);
@@ -801,6 +875,8 @@ function route() {
     state.site = decodeURIComponent(m[1]);
     $("siteview").classList.remove("hidden");
     every(15000, () => loadSite(state.site).catch(() => {}));
+    loadBans();
+    every(3000, () => loadLive(state.site).catch(() => {}));
   } else if (location.hash === "#/settings") {
     state.view = "settings";
     $("settingsSaved").classList.add("hidden");
@@ -813,6 +889,10 @@ function route() {
   }
   window.scrollTo(0, 0);
 }
+$("liveLog").addEventListener("click", (e) => {
+  const b = e.target.closest(".banbtn");
+  if (b) toggleBan(b.dataset.ip, b.dataset.unban === "1");
+});
 window.addEventListener("hashchange", route);
 $("backLink").addEventListener("click", (e) => { e.preventDefault(); location.hash = ""; });
 

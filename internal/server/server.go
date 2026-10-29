@@ -45,11 +45,13 @@ type Server struct {
 		sync.Mutex
 		m map[string][]time.Time // ip -> failed login times
 	}
+	bots *botCache
 }
 
 func New(cfg *config.Config, st *store.Store, col *engine.Collector, al *alerter.Alerter, configPath string) *Server {
 	s := &Server{cfg: cfg, configPath: configPath, st: st, col: col, al: al}
 	s.attM.m = map[string][]time.Time{}
+	s.bots = newBotCache()
 	return s
 }
 
@@ -89,6 +91,10 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /api/meta", s.auth(s.handleMeta))
 	mux.HandleFunc("GET /api/overview", s.auth(s.handleOverview))
 	mux.HandleFunc("GET /api/site/{user}", s.auth(s.handleSite))
+	mux.HandleFunc("GET /api/site/{user}/live", s.auth(s.handleSiteLive))
+	mux.HandleFunc("GET /api/bans", s.auth(s.handleBans))
+	mux.HandleFunc("POST /api/ban", s.auth(s.handleBan))
+	mux.HandleFunc("POST /api/unban", s.auth(s.handleUnban))
 	mux.HandleFunc("GET /api/events", s.auth(s.handleEvents))
 	mux.HandleFunc("GET /api/settings", s.auth(s.handleSettingsGet))
 	mux.HandleFunc("POST /api/settings", s.auth(s.handleSettingsSave))

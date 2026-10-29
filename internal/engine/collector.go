@@ -69,6 +69,14 @@ func NewCollector(cfg *config.Config, st *store.Store, al *alerter.Alerter) *Col
 func (c *Collector) Registry() *sites.Registry { return c.reg.Load() }
 func (c *Collector) Latest() *collect.Snapshot { return c.latest.Load() }
 
+// LiveHits returns the site's recent individual requests from the log tailer.
+func (c *Collector) LiveHits(user string) []collect.LiveHit {
+	if c.tailer == nil {
+		return nil
+	}
+	return c.tailer.LiveHits(user)
+}
+
 // FpmFor returns a copy of the site's last known pooled FPM status.
 func (c *Collector) FpmFor(user string) *collect.FpmStatus {
 	c.mu.Lock()

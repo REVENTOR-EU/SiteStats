@@ -141,7 +141,7 @@ func parseNetDev(content string) (rx, tx uint64) {
 // format:
 //
 //	IP - user [time] "request" status bytes "referer" "ua" "xff"
-func parseAccessLine(line string) (ip, method, path string, status int, bytes int64, ok bool) {
+func parseAccessLine(line string) (ip, method, path string, status int, bytes int64, ua string, ok bool) {
 	// client addr up to first space
 	i := strings.IndexByte(line, ' ')
 	if i <= 0 {
@@ -187,5 +187,28 @@ func parseAccessLine(line string) (ip, method, path string, status int, bytes in
 		}
 		bytes = b
 	}
-	return ip, method, path, status, bytes, true
+	// quoted fields after status/bytes: "referer" "user-agent" ["xff"]
+	ua = nthQuoted(afterReq, 2)
+	return ip, method, path, status, bytes, ua, true
+}
+
+// nthQuoted returns the n-th (0-based) double-quoted segment of s, or "".
+func nthQuoted(s string, n int) string {
+	i := 0
+	for {
+		q1 := strings.IndexByte(s, '"')
+		if q1 < 0 {
+			return ""
+		}
+		rest := s[q1+1:]
+		q2 := strings.IndexByte(rest, '"')
+		if q2 < 0 {
+			return ""
+		}
+		if i == n {
+			return rest[:q2]
+		}
+		s = rest[q2+1:]
+		i++
+	}
 }

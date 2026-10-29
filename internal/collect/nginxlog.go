@@ -27,6 +27,18 @@ type TopEntry struct {
 	Bytes int64
 }
 
+// LiveHit is one individual request, kept in a small in-memory ring per site
+// to power the "live requests" view.
+type LiveHit struct {
+	Ts     int64
+	IP     string
+	Method string
+	Path   string
+	Status int
+	Bytes  int64
+	UA     string
+}
+
 // TopWindow is the drained result of one aggregation window.
 type TopWindow struct {
 	Start int64
@@ -44,6 +56,8 @@ type LogTailer struct {
 	unknown map[string]bool // log paths not mapped to a site (report once)
 
 	minute map[string]*TrafficMinute
+
+	live       map[string][]LiveHit
 
 	winDur     time.Duration
 	winStart   time.Time
@@ -72,8 +86,12 @@ func NewLogTailer(reg *sites.Registry, window time.Duration, topKeep int) *LogTa
 		urls:     map[string]map[string]*TopEntry{},
 		ips:      map[string]map[string]*TopEntry{},
 		topKeep:  topKeep,
+		live:     map[string][]LiveHit{},
 	}
 }
+
+// liveCap bounds the per-site live ring (about 2-3 minutes of busy traffic).
+const liveCap = 300
 
 // SetRegistry swaps in a refreshed site registry; new log paths are picked up
 // on the next poll, removed ones are dropped.
@@ -82,9 +100,11 @@ func (t *LogTailer) SetRegistry(reg *sites.Registry) {
 	defer t.mu.Unlock()
 	t.reg = reg
 	for path, st := range t.files {
-		if reg.ByLogPath(path) == nil {
+		if site := reg.ByLogPath(path); site == nil {
 			st.f.Close()
 			delete(t.files, path)
+		} else {
+			delete(t.live, site.User)
 		}
 	}
 }
@@ -160,7 +180,7 @@ func (t *LogTailer) consume(site *sites.Site, line string) {
 	if line == "" {
 		return
 	}
-	ip, _, reqPath, status, nbytes, ok := parseAccessLine(line)
+	ip, method, reqPath, status, nbytes, ua, ok := parseAccessLine(line)
 	if !ok {
 		t.unknown[site.User] = true // malformed line; counted once per site
 		return
@@ -181,6 +201,25 @@ func (t *LogTailer) consume(site *sites.Site, line string) {
 
 	putTop(t.urls, site.User, reqPath, nbytes)
 	putTop(t.ips, site.User, ip, nbytes)
+
+	ring := append(t.live[site.User], LiveHit{
+		Ts: time.Now().Unix(), IP: ip, Method: method, Path: reqPath,
+		Status: status, Bytes: nbytes, UA: ua,
+	})
+	if len(ring) > liveCap {
+		ring = ring[len(ring)-liveCap:]
+	}
+	t.live[site.User] = ring
+}
+
+// LiveHits returns a copy of the site's recent individual requests.
+func (t *LogTailer) LiveHits(user string) []LiveHit {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	ring := t.live[user]
+	out := make([]LiveHit, len(ring))
+	copy(out, ring)
+	return out
 }
 
 // maxTopEntries bounds the per-site top maps: a flood of unique paths or IPs

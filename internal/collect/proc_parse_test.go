@@ -98,7 +98,7 @@ func TestParseNetDev(t *testing.T) {
 
 func TestParseAccessLine(t *testing.T) {
 	line := `203.0.113.7 - - [12/Oct/2026:20:25:41 +0200] "POST /wp-cron.php?doing_wp_cron=1 HTTP/1.1" 200 11 "-" "WordPress/7.1.3; https://example-site.com" "-"`
-	ip, method, path, status, bytes, ok := parseAccessLine(line)
+	ip, method, path, status, bytes, _, ok := parseAccessLine(line)
 	if !ok {
 		t.Fatal("expected ok")
 	}
@@ -109,7 +109,7 @@ func TestParseAccessLine(t *testing.T) {
 
 func TestParseAccessLineZeroBytesAndSpacedPath(t *testing.T) {
 	line := `130.61.26.101 - - [12/Oct/2026:20:25:41 +0200] "GET /some/path with space?q=1 HTTP/1.1" 404 - "-" "Uptime-Kuma/2.2.0" "-"`
-	ip, _, path, status, bytes, ok := parseAccessLine(line)
+	ip, _, path, status, bytes, _, ok := parseAccessLine(line)
 	if !ok {
 		t.Fatal("expected ok")
 	}
@@ -123,7 +123,7 @@ func TestParseAccessLineZeroBytesAndSpacedPath(t *testing.T) {
 
 func TestParseAccessLineGarbage(t *testing.T) {
 	for _, line := range []string{"", "not a log line", `1.2.3.4 - - [x] "GET / HTTP/1.1" abc def "-" "-" "-"`} {
-		if _, _, _, _, _, ok := parseAccessLine(line); ok {
+		if _, _, _, _, _, _, ok := parseAccessLine(line); ok {
 			t.Fatalf("expected !ok for %q", line)
 		}
 	}
@@ -131,7 +131,7 @@ func TestParseAccessLineGarbage(t *testing.T) {
 
 func TestParseAccessLineTruncated(t *testing.T) {
 	line := `1.2.3.4 - - [12/Oct/2026:20:25:41 +0200] "GET / HTTP/1.1"`
-	if _, _, _, _, _, ok := parseAccessLine(line); ok {
+	if _, _, _, _, _, _, ok := parseAccessLine(line); ok {
 		t.Fatal("expected !ok for truncated line")
 	}
 }

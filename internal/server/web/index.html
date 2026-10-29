@@ -156,12 +156,24 @@
       <div class="card"><h3>Disk usage (site home)</h3><div id="diskChart"></div></div>
       <div class="card"><h3>Alerts for this site</h3><ul class="events" id="siteEvents"></ul></div>
     </div>
+
+    <div class="card">
+      <h3>Live requests <span class="hint">last few minutes · newest first · colored by client IP</span></h3>
+      <div style="overflow-x:auto">
+        <table class="livelog">
+          <thead>
+            <tr><th>Time</th><th>Client IP</th><th>Bot</th><th>Status</th><th>Request</th><th></th></tr>
+          </thead>
+          <tbody id="liveLog"></tbody>
+        </table>
+      </div>
+    </div>
   </section>
 </main>
 
 <footer>SiteStats <span id="ver"></span> · times in your local timezone</footer>
 
 <script src="/static/uplot.iife.min.js?v=13"></script>
-<script src="/static/app.js?v=38"></script>
+<script src="/static/app.js?v=39"></script>
 </body>
 </html>
