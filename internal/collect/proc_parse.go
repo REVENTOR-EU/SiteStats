@@ -161,9 +161,11 @@ func parseAccessLine(line string) (ip, method, path string, status int, bytes in
 	}
 	request := rest[q1+1 : q1+1+q2]
 	if m, p, found := strings.Cut(request, " "); found {
-		method, path = m, p
-		if j := strings.IndexByte(p, '?'); j >= 0 {
-			path = p[:j]
+		method = m
+		path = p
+		// strip query string and trailing " HTTP/x.y" protocol
+		if j := strings.IndexAny(path, "? "); j >= 0 {
+			path = path[:j]
 		}
 	} else {
 		path = request
