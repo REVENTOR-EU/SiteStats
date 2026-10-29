@@ -738,6 +738,8 @@ function renderSite(d) {
   $("siteTitle").textContent = `${d.name} (${d.domain})`;
   const L = d.latest || {};
   const fpm = d.fpm;
+  const disk = d.disk || [];
+  const events = d.events || [];
   $("siteCards").innerHTML =
     statCard("CPU now", fmtPct(L.cpu), L.cpu > 40 ? "crit" : "") +
     statCard("Memory", fmtBytes(L.mem * 1048576)) +
@@ -745,7 +747,7 @@ function renderSite(d) {
     statCard("4xx / 5xx per min", `${fmtInt(L.r4)} / ${fmtInt(L.r5)}`, L.r5 > 0 ? "warn" : "") +
     statCard("Processes", fmtInt(L.procs)) +
     (fpm ? statCard("FPM active / queue", `${fpm.active} / ${fpm.listenQueue}`, fpm.listenQueue > 0 ? "warn" : "") : "") +
-    (d.disk.length ? statCard("Disk (home)", fmtBytes(d.disk[d.disk.length - 1][1])) : "");
+    (disk.length ? statCard("Disk (home)", fmtBytes(disk[disk.length - 1][1])) : "");
 
   const has = (k) => (d.series[k] && d.series[k].length ? d.series[k] : null);
   const single = (k, color) => (has(k) ? [{ name: k, color, series: d.series[k] }] : null);
@@ -771,11 +773,11 @@ function renderSite(d) {
     (d.topIps || []).map((u) => ({ value: u.value, count: u.count, bytes: u.bytes })),
     (it) => `${fmtInt(it.count)} · ${fmtBytes(it.bytes)}`
   );
-  $("diskChart").innerHTML = d.disk.length ? "" : '<p class="hint" style="padding:10px">first reading available within the hour after start</p>';
-  if (d.disk.length) lineChart($("diskChart"), [{ name: "disk", color: "#4c8dff", series: d.disk }], 170, (v) => fmtBytes(v));
+  $("diskChart").innerHTML = disk.length ? "" : '<p class="hint" style="padding:10px">first reading available within the hour after start</p>';
+  if (disk.length) lineChart($("diskChart"), [{ name: "disk", color: "#4c8dff", series: disk }], 170, (v) => fmtBytes(v));
 
-  $("siteEvents").innerHTML = d.events.length
-    ? d.events.map((e) => `<li><span class="when">${fmtTs(e.ts)}</span><span class="sev ${esc(e.severity || "warning")}">${esc(e.severity || "warning")}</span><span>${esc(e.message)}</span></li>`).join("")
+  $("siteEvents").innerHTML = events.length
+    ? events.map((e) => `<li><span class="when">${fmtTs(e.ts)}</span><span class="sev ${esc(e.severity || "warning")}">${esc(e.severity || "warning")}</span><span>${esc(e.message)}</span></li>`).join("")
     : '<li class="empty">no alerts for this site</li>';
 }
 
